@@ -101,7 +101,6 @@
                     <button class="btn btn-secondary w-100" id="clearFiltersBtn" disabled>Limpar Filtros</button>
                 </div>
             </div>
-
             <div class="row g-3 mt-3">
                 <div class="col-md-12">
                     <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: SQLite Local (produtividade.db)</label>
@@ -247,7 +246,7 @@
             [K_MED_INAL]: 'ILAcaO',
             [K_DIA_SEMANA]: 'Dia da sema'
         };
-        
+
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
         const DISPLAY_COLUMNS = {
             [K_DATA]: 'Data',
@@ -354,9 +353,11 @@
                     newRow[K_MEDICO] = safeGet(K_MEDICO);
                     newRow[K_ATEND_TOTAL] = safeGet(K_ATEND_TOTAL, true);
                     
+                    // --- NOVOS CAMPOS PARA KPI ---
                     newRow[K_ATEND_NOVO] = safeGet(K_ATEND_NOVO, true); 
                     newRow[K_REAVALIACOES] = safeGet(K_REAVALIACOES, true);
                     newRow[K_TOTAL_GERAL] = safeGet(K_TOTAL_GERAL, true); 
+                    // ----------------------------
                     
                     newRow[K_ECHO] = safeGet(K_ECHO, true);
                     newRow[K_ELETRO] = safeGet(K_ELETRO, true);
@@ -386,6 +387,7 @@
                 document.getElementById('loadingMessage').style.display = 'none';
                 console.error('Erro ao carregar ou processar o SQLite:', error);
                 
+                // --- MELHORIA: EXIBIR ERRO CRÍTICO NA INTERFACE ---
                 let errorMessage = error.message;
                 if (errorMessage.includes('Not Found') || errorMessage.includes('404')) {
                     errorMessage = `O arquivo "${DB_FILE}" não foi encontrado. Certifique-se de que ele está no mesmo local do arquivo HTML.`;
@@ -393,19 +395,22 @@
                     errorMessage = `O DB foi encontrado, mas está vazio ou corrompido.`;
                 }
                 
+                // Atualiza o elemento para o usuário ver o erro
                 document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">${errorMessage}</span>`;
                 document.getElementById('dbFileName').style.color = 'red';
                 document.getElementById('totalAtendimentos').textContent = "ERRO";
                 document.getElementById('totalAtendimentosMedico').textContent = "---";
+                // ----------------------------------------------------
 
                 console.error(`ERRO CRÍTICO: Não foi possível ler o SQLite. Detalhes: ${errorMessage}`);
                 return [];
             }
         }
         
+        // --- FUNÇÃO CORRIGIDA/COM DEBUG PARA FILTRAR OS DADOS (LÓGICA: >=) ---
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
-            const filtroData = document.getElementById('filtroData').value; 
+            const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
             
             // 1. Filtrar por médico
             const filteredByMedico = data.filter(row => {
@@ -417,29 +422,39 @@
                 return filteredByMedico;
             }
 
-            // 2. Filtrar por data (A PARTIR DE)
+            // 2. Filtrar por data (LÓGICA: MAIOR OU IGUAL (>=) - A PARTIR DE)
             return filteredByMedico.filter(row => {
                 
+                // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
                 let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
                 let normalizedDate = null;
                 
-                if (!rawDate) { return false; }
+                if (!rawDate) {
+                    return false;
+                }
 
+                // TENTA 1: Timestamp (número grande, ex: 1672531200000)
                 if (!isNaN(rawDate) && rawDate.length > 10) {
                     const dateObj = new Date(parseInt(rawDate, 10));
-                    normalizedDate = dateObj.toISOString().substring(0, 10); 
+                    normalizedDate = dateObj.toISOString().substring(0, 10); // AAAA-MM-DD
                 }
+                // TENTA 2: Formato Brasileiro (DD/MM/AAAA)
                 else if (rawDate.includes('/') && rawDate.length >= 8) {
                     const parts = rawDate.substring(0, 10).split('/');
                     if (parts.length === 3 && parts[2].length === 4) {
+                        // Converte para AAAA-MM-DD
                         normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                     }
                 } 
+                // TENTA 3: Formato ISO/DB (AAAA-MM-DD HH:MM:SS ou AAAA-MM-DD)
                 else if (rawDate.includes('-') && rawDate.length >= 10) {
-                    normalizedDate = rawDate.substring(0, 10); 
+                    normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
                 }
                 
-                return normalizedDate >= filtroData;
+                // ** A MUDANÇA: Comparação de strings YYYY-MM-DD com MAIOR OU IGUAL (>=) **
+                const isDataMatch = normalizedDate >= filtroData;
+                
+                return isDataMatch;
             });
         }
         
@@ -465,12 +480,15 @@
             document.getElementById('filtroData').disabled = false;
         }
 
+        // --- FUNÇÃO generateKPIs MODIFICADA PARA NOVAS MÉTRICAS ---
         function generateKPIs(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             
+            // KPI 1: Total Geral de Atendimentos (Mantém o original)
             const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
             document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
             
+            // KPI 2: Novos Atendimentos (Anteriormente: Total Geral/Filtrado)
             const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
             document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
             
@@ -482,17 +500,19 @@
                 tituloKPI.textContent = 'Novos Atendimentos';
             }
             
+            // KPI 3: Total de Reavaliações (Anteriormente: Medicações EV)
             const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
             document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
             
+            // KPI 4: Total Atend. + Reavaliações (Anteriormente: Ecocardiogramas)
             const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
         }
-        
-        // As funções getProdutividadePorMedicoData, getExamesPorMedicoData, etc. permanecem inalteradas
+
         function getProdutividadePorMedicoData(data) {
             const agrupado = data.reduce((acc, row) => {
                 const medico = String(row[K_MEDICO]).trim();
+                // Utilizando a coluna K_ATEND_TOTAL (Total de atendimento) para os gráficos, conforme original
                 acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
                 return acc;
             }, {});
@@ -549,7 +569,7 @@
             const ordemDias = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
             const agrupado = data.reduce((acc, row) => {
                 const dia = row[K_DIA_SEMANA] ? String(row[K_DIA_SEMANA]).toUpperCase().trim() : 'N/A';
-                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0); 
+                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0); // Usando K_ATEND_TOTAL
                 return acc;
             }, {});
             const labels = ordemDias.filter(dia => agrupado[dia] !== undefined);
@@ -567,22 +587,45 @@
         }
         
         function createCharts(data) {
-            // Destrói instâncias anteriores
+            // Destrói instâncias anteriores para evitar vazamento de memória e sobreposição
             if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
             if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
             if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
             if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
             if (medicacoesChartInstance) medicacoesChartInstance.destroy();
 
-            // Lógica de criação dos gráficos... (sem alterações significativas aqui)
-            
             // 1. Produtividade por Médico
             const produtividadeMedico = getProdutividadePorMedicoData(data);
             if (produtividadeMedico.data.length > 0) {
                  produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
                     type: 'bar',
-                    data: { labels: produtividadeMedico.labels, datasets: [{ label: 'Total de Atendimentos', data: produtividadeMedico.data, backgroundColor: colors.secundario, }] },
-                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 10 }, callback: function(value, index, values) { const label = this.getLabelForValue(value); if (label && label.length > 20) { return label.split(' '); } return label; } } } }, plugins: { legend: { display: false } } }
+                    data: {
+                        labels: produtividadeMedico.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: produtividadeMedico.data,
+                            backgroundColor: colors.secundario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false, 
+                        indexAxis: 'y', 
+                        scales: { 
+                            x: { beginAtZero: true },
+                            y: {
+                                ticks: {
+                                    font: { size: 10 },
+                                    callback: function(value, index, values) {
+                                        const label = this.getLabelForValue(value);
+                                        if (label && label.length > 20) { return label.split(' '); }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             }
 
@@ -591,8 +634,23 @@
             if (atendimentosDiaSemana.data.length > 0) {
                 atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
                     type: 'line',
-                    data: { labels: atendimentosDiaSemana.labels, datasets: [{ label: 'Total de Atendimentos', data: atendimentosDiaSemana.data, backgroundColor: 'rgba(0, 123, 255, 0.2)', borderColor: colors.primario, tension: 0.3, fill: true }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                    data: {
+                        labels: atendimentosDiaSemana.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: atendimentosDiaSemana.data,
+                            backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                            borderColor: colors.primario,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             }
 
@@ -602,7 +660,19 @@
                 examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
                     type: 'bar',
                     data: examesPorMedicoData,
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, title: { display: true, text: 'Médicos' }, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { 
+                                stacked: true, 
+                                title: { display: true, text: 'Médicos' },
+                                ticks: { font: { size: 10 } }
+                            },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: { legend: { position: 'bottom' } }
+                    }
                 });
             }
             
@@ -611,8 +681,23 @@
             if (medicacoesPorMedicoData.data.length > 0) {
                 medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
                     type: 'bar',
-                    data: { labels: medicacoesPorMedicoData.labels, datasets: [{ label: 'Total de Medicações', data: medicacoesPorMedicoData.data, backgroundColor: colors.roxo, }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { ticks: { font: { size: 10 } } } }, plugins: { legend: { display: false } } }
+                    data: {
+                        labels: medicacoesPorMedicoData.labels,
+                        datasets: [{
+                            label: 'Total de Medicações',
+                            data: medicacoesPorMedicoData.data,
+                            backgroundColor: colors.roxo,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { 
+                            y: { beginAtZero: true },
+                            x: { ticks: { font: { size: 10 } } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             }
 
@@ -621,29 +706,52 @@
             if (medicacoes.data.length > 0) {
                 medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
                     type: 'bar',
-                    data: { labels: medicacoes.labels, datasets: [{ label: 'Total de Prescrições', data: medicacoes.data, backgroundColor: colors.amarelo, }] },
-                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                    data: {
+                        labels: medicacoes.labels,
+                        datasets: [{
+                            label: 'Total de Prescrições',
+                            data: medicacoes.data,
+                            backgroundColor: colors.amarelo,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             }
         }
 
+        // --- FUNÇÃO ADICIONAL PARA GERENCIAR O ALERTA DE FILTRO VAZIO ---
         function toggleFilterAlert(show) {
             const alertDiv = document.getElementById('filterAlert');
             if (show) {
                 alertDiv.style.display = 'block';
-                setTimeout(() => { alertDiv.style.display = 'none'; }, 8000); 
+                // Esconde o alerta automaticamente após 8 segundos
+                setTimeout(() => {
+                    alertDiv.style.display = 'none';
+                }, 8000); 
             } else {
                 alertDiv.style.display = 'none';
             }
         }
         
+        // --- FUNÇÃO PARA LIMPAR FILTROS ---
         function clearFilters() {
+            // Reseta o filtro do médico para "Todos"
             document.getElementById('filtroMedico').value = 'todos';
+            // Limpa o campo de data
             document.getElementById('filtroData').value = '';
+            
+            // Chama a função principal de atualização
             updateDashboard();
+            
             console.log("Filtros de Médico e Data limpos. Dashboard atualizado.");
         }
-        
+
         // --- NOVA FUNÇÃO PARA RENDERIZAR A TABELA DE DETALHES ---
         function renderDetailedTable(data) {
             const container = document.getElementById('detailedTableContainer');
@@ -667,6 +775,7 @@
             // 1. Cabeçalho (Header)
             tableHTML += `<thead><tr>`;
             COLUMN_ORDER.forEach(key => {
+                // Remove o texto entre parênteses para o cabeçalho da tabela (ex: Total Geral (N+R) vira Total Geral)
                 tableHTML += `<th scope="col" title="${DISPLAY_COLUMNS[key]}">${DISPLAY_COLUMNS[key].replace(/\s\(.*\)/, '')}</th>`;
             });
             tableHTML += `</tr></thead>`;
@@ -680,7 +789,7 @@
                     let alignment = 'text-start'; 
 
                     // Formatação e Alinhamento
-                    if (!isNaN(value) && value !== null && value !== '') {
+                    if (!isNaN(value) && value !== null && value !== '' && key !== K_DATA) {
                          // Se for numérico, formatar e centralizar
                         value = Number(value).toLocaleString('pt-BR');
                         alignment = 'text-center'; 
@@ -704,6 +813,7 @@
             container.innerHTML = tableHTML;
         }
 
+
         // --- INICIALIZAÇÃO E EVENTOS ---
 
         async function initDashboard() {
@@ -713,18 +823,24 @@
                 populateMedicoFilter(allData);
                 updateDashboard();
 
+                // Adiciona os event listeners aos botões
                 document.getElementById('applyFiltersBtn').onclick = updateDashboard;
                 document.getElementById('clearFiltersBtn').onclick = clearFilters;
                 
+                // Habilita os botões de filtro
                 document.getElementById('applyFiltersBtn').disabled = false;
                 document.getElementById('clearFiltersBtn').disabled = false;
 
             } else {
+                // Desabilita filtros se não houver dados
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
+                
+                // Desabilita os botões em caso de erro/falta de dados
                 document.getElementById('applyFiltersBtn').disabled = true;
                 document.getElementById('clearFiltersBtn').disabled = true;
-                renderDetailedTable([]); // Garante que a tabela inicial fique vazia/com a mensagem de erro
+                
+                renderDetailedTable([]); // Garante que a tabela inicial mostre mensagem de erro/vazio
                 console.log("Não há dados para exibir.");
             }
         }
@@ -732,8 +848,10 @@
         function updateDashboard() {
             const filteredData = filterData(allData);
 
+            // Verifica se há dados filtrados e gerencia o alerta
             if (filteredData.length === 0) {
                 toggleFilterAlert(true);
+                // Gera KPIs e Charts com dados vazios para zerar a interface
                 generateKPIs([]); 
                 createCharts([]);
                 renderDetailedTable([]); // ATUALIZA A TABELA COM DADOS VAZIOS
