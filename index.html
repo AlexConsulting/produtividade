@@ -415,7 +415,7 @@
         
         function filterData(data) {
             
-            // --- MUDANÇA: Recupera Múltiplos Médicos Selecionados ---
+            // --- 1. FILTRO MÉDICO (Recupera Múltiplos Médicos Selecionados) ---
             const selectMedicoElement = document.getElementById('filtroMedico');
             const selectedMedicos = Array.from(selectMedicoElement.selectedOptions)
                                         .map(option => option.value.toUpperCase());
@@ -424,7 +424,7 @@
             const filtroData = document.getElementById('filtroData').value;
             const filtroTurno = document.getElementById('filtroTurno').value; 
             
-            // 1. Filtrar por médico(s)
+            // Filtro 1: Médico(s) (Lógica OR: Traz registros de Médico A OU Médico B)
             let filteredData = data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
                 
@@ -437,7 +437,7 @@
                 return selectedMedicos.includes(medicoNome);
             });
 
-            // 2. Filtrar por turno
+            // Filtro 2: Turno (Lógica AND: Filtra o resultado do Médico(s) pelo Turno)
             filteredData = filteredData.filter(row => {
                 const turnoNome = row[K_TURNO] ? String(row[K_TURNO]).trim().toUpperCase() : '';
                 return filtroTurno === 'todos' || turnoNome === filtroTurno.toUpperCase();
@@ -447,7 +447,7 @@
                 return filteredData;
             }
 
-            // 3. Filtrar por data (A PARTIR DE)
+            // Filtro 3: Data (A PARTIR DE) (Lógica AND: Filtra o resultado anterior pela Data)
             return filteredData.filter(row => {
                 
                 let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
