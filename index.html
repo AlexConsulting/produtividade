@@ -209,7 +209,7 @@
         const K_ATEND_TOTAL = 'atend_total'; 
         const K_ATEND_NOVO = 'atend_novo'; 
         const K_REAVALIACOES = 'reavaliacoes'; 
-        const K_TOTAL_GERAL = 'total_geral_completo'; 
+        const K_TOTAL_GERAL = 'total_geral_completo'; // Agora será a soma de K_ATEND_NOVO + K_REAVALIACOES
         const K_ECHO = 'echo';
         const K_ELETRO = 'eletro';
         const K_LAB = 'lab';
@@ -225,6 +225,7 @@
         const K_DIA_SEMANA = 'dia_semana';
         
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (Versão Simplificada) ---
+        // K_TOTAL_GERAL será lido do DB mas seu valor será sobrescrito pela soma de NOVO + REAVAL
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
@@ -356,7 +357,9 @@
                     // --- NOVOS CAMPOS PARA KPI ---
                     newRow[K_ATEND_NOVO] = safeGet(K_ATEND_NOVO, true); 
                     newRow[K_REAVALIACOES] = safeGet(K_REAVALIACOES, true);
-                    newRow[K_TOTAL_GERAL] = safeGet(K_TOTAL_GERAL, true); 
+                    // Campo K_TOTAL_GERAL: Força a ser a soma de Novos Atendimentos + Reavaliações, conforme solicitado
+                    safeGet(K_TOTAL_GERAL, true); // Lê o valor original apenas para evitar warnings, mas não o usa
+                    newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
                     // ----------------------------
                     
                     newRow[K_ECHO] = safeGet(K_ECHO, true);
@@ -488,7 +491,7 @@
             const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
             document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
             
-            // KPI 2: Novos Atendimentos (Anteriormente: Total Geral/Filtrado)
+            // KPI 2: Novos Atendimentos
             const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
             document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
             
@@ -500,11 +503,11 @@
                 tituloKPI.textContent = 'Novos Atendimentos';
             }
             
-            // KPI 3: Total de Reavaliações (Anteriormente: Medicações EV)
+            // KPI 3: Total de Reavaliações
             const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
             document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
             
-            // KPI 4: Total Atend. + Reavaliações (Anteriormente: Ecocardiogramas)
+            // KPI 4: Atend. + Reavaliações. Usa K_TOTAL_GERAL, que agora está garantido de ser a soma correta.
             const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
         }
