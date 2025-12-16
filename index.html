@@ -190,102 +190,120 @@
         const K_MED_INAL = 'med_inal';
         const K_DIA_SEMANA = 'dia_semana';
         
-        // --- COLUNAS SQLITE CORRIGIDAS LITERALMENTE (USANDO ESPAÇOS E CARACTERES ESPECIAIS) ---
-        // Usaremos nomes literais com aspas duplas na consulta e no acesso aos dados (row["Nome Literal"]).
-        const DB_COLUMNS_LITERAL = [
-            'Data do plantao:  ', 
-            'Nome do medico (nome completo,  maiusculo) : ', 
-            'Total de atendimento novos atendimentos e reavalicões: ',
-            'Numero de ecocardiograma', 
-            'Numero de eletrocardiograma', 
-            'Numero de laboratoriais', 
-            'Numero de RX', 
-            'Tomografias', 
-            'USG', 
-            'Medicacao prescritas EV', 
-            'Medicacao prescritas IM', 
-            'Medicacao Subcultanea', 
-            'Medicacao VO ou Subligual', 
-            'Medicacao OFTALMICA', 
-            'ILAcaO', 
-            'Dia da sema:'
-        ];
+        // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (Versão Simplificada) ---
+        // O código procurará pela coluna real do DB que contenha esta substring.
+        const COLUMN_MAP_KEYS = {
+            [K_DATA]: 'Data do plantao',
+            [K_MEDICO]: 'Nome do medico',
+            [K_ATEND_TOTAL]: 'Total de atendimento',
+            [K_ECHO]: 'ecocardiograma',
+            [K_ELETRO]: 'eletrocardiograma',
+            [K_LAB]: 'laboratoriais',
+            [K_RX]: 'RX',
+            [K_TOMO]: 'Tomografias',
+            [K_USG]: 'USG',
+            [K_MED_EV]: 'EV', // Medicacao prescritas EV
+            [K_MED_IM]: 'IM', // Medicacao prescritas IM
+            [K_MED_SUBCUT]: 'Subcultanea',
+            [K_MED_VO]: 'VO ou Subligual',
+            [K_MED_OFTAL]: 'OFTALMICA',
+            [K_MED_INAL]: 'ILAcaO',
+            [K_DIA_SEMANA]: 'Dia da sema'
+        };
 
         // 2. FUNÇÃO PARA LER OS DADOS DO ARQUIVO SQLITE USANDO SQL.JS
         async function loadDataFromSQLite() {
             document.getElementById('loadingMessage').style.display = 'block';
             
-            // CORREÇÃO: DB_FILE definido fora do bloco try
             const DB_FILE = 'produtividade.db'; 
             
             try {
-                // Inicializa o SQL.js, carregando o arquivo .wasm via CDN
+                // Inicializa o SQL.js
                 const SQL = await initSqlJs({ 
                     locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` 
                 });
                 
-                // Carrega o arquivo binário do .db do mesmo local do HTML
+                // Carrega o arquivo binário do .db
                 const response = await fetch(DB_FILE);
                 if (!response.ok) {
-                    throw new Error(`Não foi possível carregar o arquivo DB: ${DB_FILE}. Status: ${response.status}`);
+                    throw new Error(`Não foi possível carregar o arquivo DB: ${DB_FILE}. Verifique se ele está no mesmo local que o HTML. Status: ${response.status}`);
                 }
                 const buffer = await response.arrayBuffer();
                 const db = new SQL.Database(new Uint8Array(buffer));
                 
-                // Assumindo que o nome da tabela seja 'produtividade'
-                const tableName = 'produtividade'; 
+                // 1. DESCOBRIR O NOME DA TABELA REAL (o conversor pode ter mudado)
+                const tableRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+                if (tableRes.length === 0) {
+                    throw new Error("Nenhuma tabela de dados encontrada no banco de dados.");
+                }
+                const tableName = tableRes[0].values[0][0]; // Pega o primeiro nome de tabela
                 
-                // CORREÇÃO CRÍTICA: Envolver nomes de colunas com aspas duplas (") para o SQLITE
-                // .trim() para remover espaços extras no final, que causam problemas no SQL.
-                const quotedColumns = DB_COLUMNS_LITERAL.map(col => `"${col.trim()}"`).join(', ');
-
-                // Executa a consulta
-                const res = db.exec(`SELECT ${quotedColumns} FROM ${tableName}`);
+                // 2. OBTER TODOS OS DADOS DA TABELA USANDO ASPAS DUPLAS NO SELECT *
+                // Isso garante que colunas com espaços sejam retornadas
+                const res = db.exec(`SELECT * FROM "${tableName}"`);
                 
-                if (res.length === 0) {
+                if (res.length === 0 || res[0].values.length === 0) {
+                    db.close();
                     return [];
                 }
 
                 const columns = res[0].columns;
                 const values = res[0].values;
                 
-                // Processamento dos dados
+                // 3. MAPEAR NOMES DE COLUNAS REAIS PARA CHAVES INTERNAS (K_*)
+                const dbKeyToInternalKey = {}; 
+                const internalKeys = Object.keys(COLUMN_MAP_KEYS);
+
+                for (const dbColName of columns) {
+                    const cleanDbColName = dbColName.toLowerCase().replace(/[\s\t:()-]/g, '');
+
+                    for (const internalKey of internalKeys) {
+                        const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
+                        
+                        // Verifica se a string de correspondência está contida no nome da coluna do DB
+                        if (cleanDbColName.includes(simpleMatchString) && !dbKeyToInternalKey[internalKey]) {
+                            dbKeyToInternalKey[internalKey] = dbColName;
+                            break; 
+                        }
+                    }
+                }
+
+                // 4. PROCESSAMENTO DOS DADOS USANDO O MAPA
                 let processedData = values.map(rowValues => {
                     let row = {};
-                    // Mapeia os valores para as chaves literais retornadas pela consulta
+                    // Cria um objeto { Nome_Real_Coluna: Valor }
                     columns.forEach((col, index) => {
                         row[col] = rowValues[index];
                     });
                     
                     let newRow = {};
                     
-                    // --- MAPEAMENTO CORRIGIDO PARA ACESSAR OS NOMES LITERAIS (row["Nome Literal"]) ---
+                    // Acessa o valor pelo nome real da coluna encontrado no dbKeyToInternalKey
+                    const safeGet = (internalKey, isNumber = false) => {
+                        const dbColName = dbKeyToInternalKey[internalKey];
+                        const value = row[dbColName];
+                        return isNumber ? (Number(value) || 0) : (value || '');
+                    };
+
+                    newRow[K_DATA] = safeGet(K_DATA);
+                    newRow[K_MEDICO] = safeGet(K_MEDICO);
+                    newRow[K_ATEND_TOTAL] = safeGet(K_ATEND_TOTAL, true);
                     
-                    // Nota: O nome da coluna pode ter sido truncado ou limpo pelo SQLite ao criar a tabela.
-                    // Para garantir, vamos tentar o nome original primeiro, e depois versões mais limpas, se houver problemas.
+                    newRow[K_ECHO] = safeGet(K_ECHO, true);
+                    newRow[K_ELETRO] = safeGet(K_ELETRO, true);
+                    newRow[K_LAB] = safeGet(K_LAB, true);
+                    newRow[K_RX] = safeGet(K_RX, true);
+                    newRow[K_TOMO] = safeGet(K_TOMO, true);
+                    newRow[K_USG] = safeGet(K_USG, true);
                     
-                    // Tenta o nome literal que foi consultado (que deve ser o nome literal do CSV, mas sem os espaços finais, devido ao .trim() no quotedColumns)
-                    const dataKey = 'Data do plantao:'; // Tentativa mais provável após o .trim()
+                    newRow[K_MED_EV] = safeGet(K_MED_EV, true);
+                    newRow[K_MED_IM] = safeGet(K_MED_IM, true);
+                    newRow[K_MED_SUBCUT] = safeGet(K_MED_SUBCUT, true); 
+                    newRow[K_MED_VO] = safeGet(K_MED_VO, true); 
+                    newRow[K_MED_OFTAL] = safeGet(K_MED_OFTAL, true);
+                    newRow[K_MED_INAL] = safeGet(K_MED_INAL, true); 
                     
-                    newRow[K_DATA] = row[dataKey] || row['Data do plantao:  '] || row['Data do plantao'] || row['Data do plantao: '];
-                    newRow[K_MEDICO] = row["Nome do medico (nome completo, maiusculo) : "];
-                    newRow[K_ATEND_TOTAL] = Number(row["Total de atendimento novos atendimentos e reavalicões: "]) || 0;
-                    
-                    newRow[K_ECHO] = Number(row["Numero de ecocardiograma"]) || 0;
-                    newRow[K_ELETRO] = Number(row["Numero de eletrocardiograma"]) || 0;
-                    newRow[K_LAB] = Number(row["Numero de laboratoriais"]) || 0;
-                    newRow[K_RX] = Number(row["Numero de RX"]) || 0;
-                    newRow[K_TOMO] = Number(row["Tomografias"]) || 0;
-                    newRow[K_USG] = Number(row["USG"]) || 0;
-                    
-                    newRow[K_MED_EV] = Number(row["Medicacao prescritas EV"]) || 0;
-                    newRow[K_MED_IM] = Number(row["Medicacao prescritas IM"]) || 0;
-                    newRow[K_MED_SUBCUT] = Number(row["Medicacao Subcultanea"]) || 0; 
-                    newRow[K_MED_VO] = Number(row["Medicacao VO ou Subligual"]) || 0; 
-                    newRow[K_MED_OFTAL] = Number(row["Medicacao OFTALMICA"]) || 0;
-                    newRow[K_MED_INAL] = Number(row["ILAcaO"]) || 0; 
-                    
-                    newRow[K_DIA_SEMANA] = row["Dia da sema:"]; 
+                    newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
                     
                     return newRow;
                 })
@@ -298,13 +316,20 @@
             } catch (error) {
                 document.getElementById('loadingMessage').style.display = 'none';
                 console.error('Erro ao carregar ou processar o SQLite:', error);
-                // DB_FILE está definido aqui, corrigindo o ReferenceError
-                alert(`ERRO CRÍTICO: Não foi possível ler o SQLite. Verifique se o arquivo "${DB_FILE}" está no mesmo local do HTML e se a estrutura da tabela está correta. Detalhes: ${error.message}`);
+                
+                // Tenta exibir a mensagem de erro da biblioteca SQL.js ou do fetch
+                let errorMessage = error.message;
+                if (errorMessage.includes('Not Found')) {
+                    errorMessage = `O arquivo "${DB_FILE}" não foi encontrado. Certifique-se de que ele está no mesmo local do arquivo HTML.`;
+                }
+                
+                alert(`ERRO CRÍTICO: Não foi possível ler o SQLite. Detalhes: ${errorMessage}`);
                 return [];
             }
         }
         
-        // --- FUNÇÃO PARA FILTRAR OS DADOS (LÓGICA DE DATA E MÉDICO) ---
+        // --- FUNÇÕES DE DASHBOARD (Não alteradas, apenas movidas abaixo) ---
+        
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value;
@@ -365,8 +390,6 @@
             document.getElementById('totalEcocardiogramas').textContent = totalEcocardiogramas.toLocaleString('pt-BR');
         }
 
-        // --- FUNÇÕES DE AGREGAÇÃO DE DADOS PARA GRÁFICOS (mantidas) ---
-        
         function getProdutividadePorMedicoData(data) {
             const agrupado = data.reduce((acc, row) => {
                 const medico = String(row[K_MEDICO]).trim();
@@ -390,7 +413,6 @@
                 const colName = exameCols[index];
                 const backgroundColors = [colors.primario, colors.secundario, colors.amarelo, colors.vermelho, colors.roxo, colors.ciano];
                 
-                // Mapeia o total por médico para o exame específico (colName)
                 const dataValues = medicos.map(medico => 
                     data.filter(row => String(row[K_MEDICO]).trim() === medico)
                         .reduce((sum, row) => sum + (row[colName] || 0), 0)
@@ -444,17 +466,13 @@
             return { labels, data: dataValues };
         }
         
-        // --- FUNÇÃO CREATE CHARTS (mantida) ---
-
         function createCharts(data) {
-            // Destrói instâncias anteriores
             if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
             if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
             if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
             if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
             if (medicacoesChartInstance) medicacoesChartInstance.destroy();
 
-            // Gráfico 1: Produtividade por Médico (Barra Horizontal)
             const produtividadeMedico = getProdutividadePorMedicoData(data);
             produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
                 type: 'bar',
@@ -469,7 +487,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false, 
-                    indexAxis: 'y', // Barras horizontais
+                    indexAxis: 'y', 
                     scales: { 
                         x: { beginAtZero: true },
                         y: {
@@ -487,7 +505,6 @@
                 }
             });
 
-            // Gráfico 2: Atendimentos por Dia da Semana (Linha)
             const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
             atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
                 type: 'line',
@@ -510,7 +527,6 @@
                 }
             });
 
-            // Gráfico 3: Exames Solicitados por Médico (Barra Vertical Empilhada)
             const examesPorMedicoData = getExamesPorMedicoData(data);
             examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
                 type: 'bar',
@@ -530,7 +546,6 @@
                 }
             });
             
-            // Gráfico 4: Medicações Prescritas por Médico (Barra Vertical)
             const medicacoesPorMedicoData = getMedicacoesPorMedicoData(data);
             medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
                 type: 'bar',
@@ -553,7 +568,6 @@
                 }
             });
 
-            // Gráfico 5: Medicações Totais (Barra Horizontal)
             const medicacoes = getMedicacoesData(data);
             medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
                 type: 'bar',
@@ -582,17 +596,15 @@
             allData = await loadDataFromSQLite(); 
 
             if (allData.length > 0) {
-                // Popula o filtro de médicos e habilita filtros
                 populateMedicoFilter(allData);
                 updateDashboard();
 
-                // Configura listeners de filtro
                 document.getElementById('filtroMedico').onchange = updateDashboard;
                 document.getElementById('filtroData').onchange = updateDashboard;
             } else {
-                // Falha no carregamento (ex: arquivo DB não encontrado ou dados vazios)
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
+                document.getElementById('totalAtendimentos').textContent = "ERRO";
                 console.log("Não há dados para exibir.");
             }
         }
