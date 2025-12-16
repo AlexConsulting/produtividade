@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Produtividade Clínica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script> 
+    <style>
+        body { background-color: #f8f9fa; }
+        .dashboard-header { background-color: #007bff; color: white; padding: 20px 0; margin-bottom: 30px; }
+        
+        /* --- CORREÇÕES DE LAYOUT (KPI CARD) --- */
+        .kpi-card { 
+            border-left: 5px solid #007bff; 
+            border-radius: .5rem; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            background-color: white; 
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.05);
+            min-height: 120px;
+            display: flex; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15); }
+        
+        .kpi-card h5 {
+            word-wrap: break-word; 
+            text-align: center;
+            font-size: 0.9rem; 
+            min-height: 40px; 
+            margin-bottom: 0.25rem;
+        }
+        
+        .kpi-card p {
+            margin-top: 5px;
+        }
+        /* --- FIM CORREÇÕES DE LAYOUT --- */
+
+        .chart-container { 
+            background-color: white; 
+            padding: 20px; 
+            border-radius: .5rem; 
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15); 
+            position: relative; 
+        }
+        .form-select, .form-control { border-radius: .3rem; }
+        .alert-loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="dashboard-header">
+        <div class="container">
+            <h1 class="text-center">Painel de Indicadores de Produtividade - M.Boi</h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="loadingMessage" class="alert alert-info alert-loading" role="alert" style="display:none;">
+            Carregando dados do Banco de Dados SQLite...
+        </div>
+        
+        <section id="filters" class="mb-4 p-4 chart-container">
+            <h4 class="mb-3">Fonte de Dados e Filtros</h4>
+            <div class="row g-3">
+                <div class="col-md-12 mb-3">
+                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">1. FONTE DE DADOS: SQLite Local (produtividade.db)</label>
+                    <input class="form-control" type="text" id="dbFileName" value="produtividade.db" readonly style="color:#007bff;">
+                </div>
+                <div class="col-md-6">
+                    <label for="filtroMedico" class="form-label fw-bold">2. Filtrar por Médico:</label>
+                    <select class="form-select" id="filtroMedico" disabled>
+                        <option value="todos">Carregando...</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="filtroData" class="form-label fw-bold">3. Filtrar por Data:</label>
+                    <input type="date" class="form-control" id="filtroData" disabled>
+                </div>
+            </div>
+        </section>
+
+        <section id="kpis" class="mb-5">
+            <div class="row text-center">
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm">
+                        <h5 class="card-title text-muted">Total Geral de Atendimentos</h5>
+                        <p class="card-text fs-3 fw-bold text-primary" id="totalAtendimentos">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" id="kpi-atendimento-medico">
+                        <h5 class="card-title text-muted">Atend. Total Geral</h5>
+                        <p class="card-text fs-3 fw-bold text-success" id="totalAtendimentosMedico">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm">
+                        <h5 class="card-title text-muted">Total de Medicações EV</h5>
+                        <p class="card-text fs-3 fw-bold text-danger" id="totalEV">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm">
+                        <h5 class="card-title text-muted">Total de Ecocardiogramas</h5>
+                        <p class="card-text fs-3 fw-bold text-warning" id="totalEcocardiogramas">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="charts">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Produtividade por Médico (Atend. Totais)</h5>
+                        <canvas id="produtividadePorMedicoChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Atendimentos por Dia da Semana</h5>
+                        <canvas id="atendimentosDiaSemanaChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Exames Solicitados por Médico</h5>
+                        <canvas id="examesPorMedicoChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Medicações Prescritas por Médico</h5>
+                        <canvas id="medicacoesPorMedicoChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-12 mb-4">
+                    <div class="chart-container" style="height: 300px;">
+                        <h5 class="text-center mb-3">Medicações Prescritas (Total Geral)</h5>
+                        <canvas id="medicacoesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    <footer class="text-center text-muted py-3">Dashboard de Produtividade - M.Boi</footer>
+
+    <script>
+        let allData = [];
+        let examesPorMedicoChartInstance;
+        let medicacoesPorMedicoChartInstance;
+        let produtividadePorMedicoChartInstance;
+        let atendimentosDiaSemanaChartInstance;
+        let medicacoesChartInstance;
+
+        const colors = {
+            primario: 'rgba(0, 123, 255, 0.7)',
+            secundario: 'rgba(40, 167, 69, 0.7)',
+            amarelo: 'rgba(255, 193, 7, 0.7)',
+            vermelho: 'rgba(220, 53, 69, 0.7)',
+            roxo: 'rgba(108, 99, 255, 0.7)',
+            ciano: 'rgba(23, 162, 184, 0.7)',
+            cinza: 'rgba(108, 117, 125, 0.7)'
+        };
+
+        // --- DEFINIÇÃO DAS CHAVES INTERNAS (CHAVES LIMPAS PARA USO NO JS) ---
+        const K_DATA = 'data';
+        const K_MEDICO = 'medico'; 
+        const K_ATEND_TOTAL = 'atend_total';
+        const K_ECHO = 'echo';
+        const K_ELETRO = 'eletro';
+        const K_LAB = 'lab';
+        const K_RX = 'rx';
+        const K_TOMO = 'tomo';
+        const K_USG = 'usg';
+        const K_MED_EV = 'med_ev';
+        const K_MED_IM = 'med_im';
+        const K_MED_SUBCUT = 'med_subcut';
+        const K_MED_VO = 'med_vo';
+        const K_MED_OFTAL = 'med_oftal';
+        const K_MED_INAL = 'med_inal';
+        const K_DIA_SEMANA = 'dia_semana';
+        
+        const DB_COLUMNS = [
+            'data_plantao', 'nome_medico', 'total_atendimentos', 
+            'num_ecocardiograma', 'num_eletrocardiograma', 'num_laboratoriais', 
+            'num_rx', 'num_tomografias', 'num_usg', 
+            'med_ev', 'med_im', 'med_subcutanea', 'med_vo_sublingual', 'med_oftalmica', 'med_inalacao', 
+            'dia_semana'
+        ];
+
+        // 2. FUNÇÃO PARA LER OS DADOS DO ARQUIVO SQLITE USANDO SQL.JS
+        async function loadDataFromSQLite() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            
+            try {
+                // Inicializa o SQL.js
+                const SQL = await initSqlJs({ 
+                    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` 
+                });
+                
+                const DB_FILE = 'produtividade.db';
+                
+                // Carrega o arquivo binário do .db
+                const response = await fetch(DB_FILE);
+                if (!response.ok) {
+                    throw new Error(`Não foi possível carregar o arquivo DB: ${DB_FILE}. Status: ${response.status}`);
+                }
+                const buffer = await response.arrayBuffer();
+                const db = new SQL.Database(new Uint8Array(buffer));
+                
+                // Assumindo que o nome da tabela seja 'produtividade'
+                const tableName = 'produtividade'; 
+                
+                // Executa a consulta
+                const res = db.exec(`SELECT ${DB_COLUMNS.join(', ')} FROM ${tableName}`);
+                
+                if (res.length === 0) {
+                    return [];
+                }
+
+                const columns = res[0].columns;
+                const values = res[0].values;
+                
+                // Processamento dos dados
+                let processedData = values.map(rowValues => {
+                    let row = {};
+                    columns.forEach((col, index) => {
+                        row[col] = rowValues[index];
+                    });
+                    
+                    let newRow = {};
+                    
+                    // Mapeamento e Conversão
+                    newRow[K_DATA] = row.data_plantao;
+                    newRow[K_MEDICO] = row.nome_medico; 
+                    newRow[K_ATEND_TOTAL] = Number(row.total_atendimentos) || 0;
+                    
+                    newRow[K_ECHO] = Number(row.num_ecocardiograma) || 0;
+                    newRow[K_ELETRO] = Number(row.num_eletrocardiograma) || 0;
+                    newRow[K_LAB] = Number(row.num_laboratoriais) || 0;
+                    newRow[K_RX] = Number(row.num_rx) || 0;
+                    newRow[K_TOMO] = Number(row.num_tomografias) || 0;
+                    newRow[K_USG] = Number(row.num_usg) || 0;
+                    
+                    newRow[K_MED_EV] = Number(row.med_ev) || 0;
+                    newRow[K_MED_IM] = Number(row.med_im) || 0;
+                    newRow[K_MED_SUBCUT] = Number(row.med_subcutanea) || 0; 
+                    newRow[K_MED_VO] = Number(row.med_vo_sublingual) || 0; 
+                    newRow[K_MED_OFTAL] = Number(row.med_oftalmica) || 0;
+                    newRow[K_MED_INAL] = Number(row.med_inalacao) || 0;
+                    
+                    newRow[K_DIA_SEMANA] = row.dia_semana; 
+                    
+                    return newRow;
+                })
+                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== '');
+
+                document.getElementById('loadingMessage').style.display = 'none';
+                db.close();
+                return processedData;
+
+            } catch (error) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                console.error('Erro ao carregar ou processar o SQLite:', error);
+                alert(`ERRO CRÍTICO: Não foi possível ler o SQLite. Verifique se o arquivo "${DB_FILE}" está no mesmo local do HTML e se a estrutura da tabela está correta. Detalhes: ${error.message}`);
+                return [];
+            }
+        }
+        
+        // --- FUNÇÃO PARA FILTRAR OS DADOS (LÓGICA DE DATA E MÉDICO) ---
+        function filterData(data) {
+            const filtroMedico = document.getElementById('filtroMedico').value;
+            const filtroData = document.getElementById('filtroData').value;
+            
+            return data.filter(row => {
+                const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
+                const isMedicoMatch = filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
+                
+                let isDataMatch = true;
+
+                if (filtroData) {
+                    const standardizedRowData = String(row[K_DATA] || '').substring(0, 10); 
+                    isDataMatch = standardizedRowData === filtroData;
+                }
+
+                return isMedicoMatch && isDataMatch;
+            });
+        }
+        
+        function populateMedicoFilter(data) {
+            
+            const nomesValidos = data
+                .map(item => item[K_MEDICO] ? String(item[K_MEDICO]).trim().toUpperCase() : null)
+                .filter(nome => nome && nome !== ''); 
+
+            const medicos = [...new Set(nomesValidos)].sort();
+
+            const select = document.getElementById('filtroMedico');
+            select.innerHTML = '<option value="todos">Todos os Médicos</option>'; 
+            
+            medicos.forEach(medico => {
+                const option = document.createElement('option');
+                option.value = medico;
+                option.textContent = medico;
+                select.appendChild(option);
+            });
+            
+            select.disabled = false;
+            document.getElementById('filtroData').disabled = false;
+        }
+
+        function generateKPIs(data) {
+            const filtroMedico = document.getElementById('filtroMedico').value;
+            const totalAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
+            document.getElementById('totalAtendimentos').textContent = totalAtendimentos.toLocaleString('pt-BR');
+            document.getElementById('totalAtendimentosMedico').textContent = totalAtendimentos.toLocaleString('pt-BR');
+            
+            const tituloKPI = document.querySelector('#kpi-atendimento-medico h5');
+            if (filtroMedico !== 'todos') {
+                const primeiroNome = filtroMedico.split(' ')[0];
+                tituloKPI.textContent = `Atend. de ${primeiroNome} (Filtrado)`;
+            } else {
+                tituloKPI.textContent = 'Atend. Total Geral';
+            }
+            const totalEV = data.reduce((sum, row) => sum + (row[K_MED_EV] || 0), 0);
+            document.getElementById('totalEV').textContent = totalEV.toLocaleString('pt-BR');
+            const totalEcocardiogramas = data.reduce((sum, row) => sum + (row[K_ECHO] || 0), 0);
+            document.getElementById('totalEcocardiogramas').textContent = totalEcocardiogramas.toLocaleString('pt-BR');
+        }
+
+        function getProdutividadePorMedicoData(data) {
+            const agrupado = data.reduce((acc, row) => {
+                const medico = String(row[K_MEDICO]).trim();
+                acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0);
+                return acc;
+            }, {});
+            
+            const sortedEntries = Object.entries(agrupado).sort(([, a], [, b]) => b - a);
+            return {
+                labels: sortedEntries.map(([medico]) => medico),
+                data: sortedEntries.map(([, total]) => total)
+            };
+        }
+
+        function getExamesPorMedicoData(data) {
+            const exameCols = [K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG];
+            const labels = ['Ecocardiograma', 'Eletrocardiograma', 'Laboratoriais', 'RX', 'Tomografias', 'USG'];
+            const medicos = [...new Set(data.map(item => String(item[K_MEDICO]).trim()))].sort();
+            
+            const datasets = labels.map((label, index) => {
+                const colName = exameCols[index];
+                const backgroundColors = [colors.primario, colors.secundario, colors.amarelo, colors.vermelho, colors.roxo, colors.ciano];
+                
+                // Mapeia o total por médico para o exame específico (colName)
+                const dataValues = medicos.map(medico => 
+                    data.filter(row => String(row[K_MEDICO]).trim() === medico)
+                        .reduce((sum, row) => sum + (row[colName] || 0), 0)
+                );
+                
+                return {
+                    label: label,
+                    data: dataValues,
+                    backgroundColor: backgroundColors[index % backgroundColors.length],
+                };
+            });
+            return {
+                labels: medicos,
+                datasets: datasets
+            };
+        }
+
+        function getMedicacoesPorMedicoData(data) {
+            const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
+            const agrupado = data.reduce((acc, row) => {
+                const medico = String(row[K_MEDICO]).trim();
+                const totalMeds = medCols.reduce((sum, col) => sum + (row[col] || 0), 0);
+                acc[medico] = (acc[medico] || 0) + totalMeds;
+                return acc;
+            }, {});
+            const sortedEntries = Object.entries(agrupado).sort(([, a], [, b]) => b - a);
+            return {
+                labels: sortedEntries.map(([medico]) => medico),
+                data: sortedEntries.map(([, total]) => total)
+            };
+        }
+        
+        function getAtendimentosDiaSemanaData(data) {
+            const ordemDias = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
+            const agrupado = data.reduce((acc, row) => {
+                const dia = row[K_DIA_SEMANA] ? String(row[K_DIA_SEMANA]).toUpperCase().trim() : 'N/A';
+                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0);
+                return acc;
+            }, {});
+            const labels = ordemDias.filter(dia => agrupado[dia] !== undefined);
+            const dataValues = labels.map(dia => agrupado[dia] || 0);
+            return { labels, data: dataValues };
+        }
+
+        function getMedicacoesData(data) {
+            const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
+            const labels = ['EV', 'IM', 'Subcutânea', 'VO/Sublingual', 'Oftálmica', 'Inalação'];
+            const dataValues = medCols.map(col => 
+                data.reduce((sum, row) => sum + (row[col] || 0), 0)
+            );
+            return { labels, data: dataValues };
+        }
+        
+        // --- FUNÇÃO CREATE CHARTS (MANTIDA) ---
+
+        function createCharts(data) {
+            // Destrói instâncias anteriores
+            if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
+            if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
+            if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
+            if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
+            if (medicacoesChartInstance) medicacoesChartInstance.destroy();
+
+            // Gráfico 1: Produtividade por Médico (Barra Horizontal)
+            const produtividadeMedico = getProdutividadePorMedicoData(data);
+            produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
+                type: 'bar',
+                data: {
+                    labels: produtividadeMedico.labels,
+                    datasets: [{
+                        label: 'Total de Atendimentos',
+                        data: produtividadeMedico.data,
+                        backgroundColor: colors.secundario,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, 
+                    indexAxis: 'y', // Barras horizontais
+                    scales: { 
+                        x: { beginAtZero: true },
+                        y: {
+                            ticks: {
+                                font: {
+                                    size: 10 
+                                },
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    if (label.length > 20) {
+                                        return label.split(' ');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Gráfico 2: Atendimentos por Dia da Semana (Linha)
+            const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
+            atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
+                type: 'line',
+                data: {
+                    labels: atendimentosDiaSemana.labels,
+                    datasets: [{
+                        label: 'Total de Atendimentos',
+                        data: atendimentosDiaSemana.data,
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        borderColor: colors.primario,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Gráfico 3: Exames Solicitados por Médico (Barra Vertical Empilhada)
+            const examesPorMedicoData = getExamesPorMedicoData(data);
+            examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
+                type: 'bar',
+                data: examesPorMedicoData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            stacked: true, 
+                            title: { display: true, text: 'Médicos' },
+                            ticks: {
+                                font: { size: 10 } 
+                            }
+                        },
+                        y: { stacked: true, beginAtZero: true }
+                    },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+            
+            // Gráfico 4: Medicações Prescritas por Médico (Barra Vertical)
+            const medicacoesPorMedicoData = getMedicacoesPorMedicoData(data);
+            medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
+                type: 'bar',
+                data: {
+                    labels: medicacoesPorMedicoData.labels,
+                    datasets: [{
+                        label: 'Total de Medicações',
+                        data: medicacoesPorMedicoData.data,
+                        backgroundColor: colors.roxo,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true },
+                        x: {
+                            ticks: {
+                                font: { size: 10 }
+                            }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Gráfico 5: Medicações Totais (Barra Horizontal)
+            const medicacoes = getMedicacoesData(data);
+            medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
+                type: 'bar',
+                data: {
+                    labels: medicacoes.labels,
+                    datasets: [{
+                        label: 'Total de Prescrições',
+                        data: medicacoes.data,
+                        backgroundColor: colors.amarelo,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', 
+                    scales: { x: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+
+        // --- INICIALIZAÇÃO E EVENTOS (ADAPTADO PARA SQLITE) ---
+
+        async function initDashboard() {
+            // Remove o input de arquivo e ajusta o label, mas o label já está correto no HTML
+            document.getElementById('csvFileInput').style.display = 'none';
+            document.getElementById('csvFileInput').disabled = true;
+
+            // 2. Chama a nova função loadDataFromSQLite
+            allData = await loadDataFromSQLite(); 
+
+            if (allData.length > 0) {
+                // Popula o filtro de médicos e habilita filtros
+                populateMedicoFilter(allData);
+                updateDashboard();
+
+                // Configura listeners de filtro
+                document.getElementById('filtroMedico').onchange = updateDashboard;
+                document.getElementById('filtroData').onchange = updateDashboard;
+            } else {
+                // Falha no carregamento (ex: arquivo DB não encontrado ou dados vazios)
+                document.getElementById('filtroMedico').disabled = true;
+                document.getElementById('filtroData').disabled = true;
+                console.log("Não há dados para exibir.");
+            }
+        }
+        
+        function updateDashboard() {
+            const filteredData = filterData(allData);
+            generateKPIs(filteredData);
+            createCharts(filteredData);
+        }
+
+        // Chamada de inicialização
+        initDashboard();
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
