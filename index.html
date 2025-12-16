@@ -165,49 +165,8 @@
                     </div>
                 </div>
             </div>
-
-            <h5 class="mt-4 mb-3 text-muted">Fichas de Classificação de Risco</h5>
-            <div class="row text-center">
-                <div class="col-lg-2-4 col-md-6 mb-4">
-                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #28a745 !important;">
-                        <h5 class="card-title text-muted">Fichas VERDES</h5>
-                        <p class="card-text fs-3 fw-bold text-success" id="kpiFichasVerdes">0</p>
-                    </div>
-                </div>
-                <div class="col-lg-2-4 col-md-6 mb-4">
-                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #ffc107 !important;">
-                        <h5 class="card-title text-muted">Fichas AMARELAS</h5>
-                        <p class="card-text fs-3 fw-bold text-warning" id="kpiFichasAmarelas">0</p>
-                    </div>
-                </div>
-                <div class="col-lg-2-4 col-md-6 mb-4">
-                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #fd7e14 !important;">
-                        <h5 class="card-title text-muted">Fichas LARANJAS</h5>
-                        <p class="card-text fs-3 fw-bold" style="color: #fd7e14;" id="kpiFichasLaranjas">0</p>
-                    </div>
-                </div>
-                <div class="col-lg-2-4 col-md-6 mb-4">
-                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #007bff !important;">
-                        <h5 class="card-title text-muted">Fichas AZUIS</h5>
-                        <p class="card-text fs-3 fw-bold text-primary" id="kpiFichasAzuis">0</p>
-                    </div>
-                </div>
-                <div class="col-lg-2-4 col-md-6 mb-4">
-                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #adb5bd !important;">
-                        <h5 class="card-title text-muted">Fichas BRANCAS</h5>
-                        <p class="card-text fs-3 fw-bold text-secondary" id="kpiFichasBrancas">0</p>
-                    </div>
-                </div>
-            </div>
-            <style>
-                @media (min-width: 992px) {
-                    .col-lg-2-4 {
-                        flex: 0 0 auto;
-                        width: 20%; /* 100% / 5 = 20% */
-                    }
-                }
-            </style>
-        </section>
+            
+            </section>
 
         <section id="charts">
             <div class="row">
@@ -235,6 +194,14 @@
                         <canvas id="medicacoesPorMedicoChart"></canvas>
                     </div>
                 </div>
+                
+                <div class="col-12 mb-4">
+                    <div class="chart-container" style="height: 300px;">
+                        <h5 class="text-center mb-3">Fichas de Classificação de Risco (Total Geral)</h5>
+                        <canvas id="fichasClassificacaoChart"></canvas>
+                    </div>
+                </div>
+
                 <div class="col-12 mb-4">
                     <div class="chart-container" style="height: 300px;">
                         <h5 class="text-center mb-3">Medicações Prescritas (Total Geral)</h5>
@@ -262,6 +229,7 @@
         let produtividadePorMedicoChartInstance;
         let atendimentosDiaSemanaChartInstance;
         let medicacoesChartInstance;
+        let fichasClassificacaoChartInstance; // <--- NOVA INSTÂNCIA
 
         const colors = {
             primario: 'rgba(0, 123, 255, 0.7)', // Azul
@@ -674,26 +642,7 @@
             document.getElementById('kpiIntermediario').textContent = atendimentosPorTurno.intermediario.toLocaleString('pt-BR');
             document.getElementById('kpiNoturno').textContent = atendimentosPorTurno.noturno.toLocaleString('pt-BR');
 
-
-            // -------------------------------------------------------------------
-            // NOVO CÁLCULO: Fichas por Classificação de Risco
-            // -------------------------------------------------------------------
-
-            const fichasPorClassificacao = data.reduce((acc, row) => {
-                acc.verde += row[K_FICHA_VERDE] || 0;
-                acc.amarela += row[K_FICHA_AMARELA] || 0;
-                acc.laranja += row[K_FICHA_LARANJA] || 0;
-                acc.azul += row[K_FICHA_AZUL] || 0;
-                acc.branca += row[K_FICHA_BRANCA] || 0;
-                return acc;
-            }, { verde: 0, amarela: 0, laranja: 0, azul: 0, branca: 0 });
-
-            // Atualiza os novos cards de ficha
-            document.getElementById('kpiFichasVerdes').textContent = fichasPorClassificacao.verde.toLocaleString('pt-BR');
-            document.getElementById('kpiFichasAmarelas').textContent = fichasPorClassificacao.amarela.toLocaleString('pt-BR');
-            document.getElementById('kpiFichasLaranjas').textContent = fichasPorClassificacao.laranja.toLocaleString('pt-BR');
-            document.getElementById('kpiFichasAzuis').textContent = fichasPorClassificacao.azul.toLocaleString('pt-BR');
-            document.getElementById('kpiFichasBrancas').textContent = fichasPorClassificacao.branca.toLocaleString('pt-BR');
+            // Os KPIs de Fichas de Classificação de Risco foram removidos
         }
 
         function getProdutividadePorMedicoData(data) {
@@ -771,15 +720,43 @@
             const dataValues = medCols.map(col => 
                 data.reduce((sum, row) => sum + (row[col] || 0), 0)
             );
-            return { labels, data: dataValues };
+            
+            // Agrupa e ordena para exibição
+            const combined = labels.map((label, index) => ({ label, data: dataValues[index] }))
+                                   .sort((a, b) => b.data - a.data);
+                                   
+            return { 
+                labels: combined.map(item => item.label), 
+                data: combined.map(item => item.data) 
+            };
         }
         
+        // NOVO: Função para obter dados de Fichas para o gráfico
+        function getFichasData(data) {
+            const fichaCols = [K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA];
+            const labels = ['Verde', 'Amarela', 'Laranja', 'Azul', 'Branca'];
+            const dataValues = fichaCols.map(col => 
+                data.reduce((sum, row) => sum + (row[col] || 0), 0)
+            );
+            
+            // Agrupa e ordena para exibição (mais cheia para menos cheia)
+            const combined = labels.map((label, index) => ({ label, data: dataValues[index] }))
+                                   .sort((a, b) => b.data - a.data);
+                                   
+            return { 
+                labels: combined.map(item => item.label), 
+                data: combined.map(item => item.data) 
+            };
+        }
+
+
         function createCharts(data) {
             if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
             if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
             if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
             if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
             if (medicacoesChartInstance) medicacoesChartInstance.destroy();
+            if (fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy(); // <--- DESTRUIÇÃO
 
             // 1. Produtividade por Médico
             const produtividadeMedico = getProdutividadePorMedicoData(data);
@@ -888,7 +865,42 @@
                 });
             }
 
-            // 5. Medicações Prescritas (Total Geral)
+            // 5. NOVO GRÁFICO: Fichas de Classificação de Risco
+            const fichasData = getFichasData(data);
+            if (fichasData.data.length > 0) {
+                // Mapeia a cor correta para cada classificação, garantindo consistência mesmo com a ordenação
+                const colorsMap = {
+                    'Verde': colors.secundario, 
+                    'Amarela': colors.amarelo, 
+                    'Laranja': colors.laranja, 
+                    'Azul': colors.primario, 
+                    'Branca': colors.cinza
+                };
+                
+                const backgroundColors = fichasData.labels.map(label => colorsMap[label] || colors.cinza);
+
+                fichasClassificacaoChartInstance = new Chart(document.getElementById('fichasClassificacaoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: fichasData.labels,
+                        datasets: [{
+                            label: 'Total de Fichas',
+                            data: fichasData.data,
+                            backgroundColor: backgroundColors,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', // Gráfico de barras horizontal
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+
+            // 6. Medicações Prescritas (Total Geral)
             const medicacoes = getMedicacoesData(data);
             if (medicacoes.data.length > 0) {
                 medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
