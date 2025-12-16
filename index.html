@@ -330,61 +330,56 @@
             }
         }
         
-// --- FUNÇÃO PARA FILTRAR OS DADOS (A SOLUÇÃO MAIS ROBUSTA COM LOG ATIVO) ---
-function filterData(data) {
-    const filtroMedico = document.getElementById('filtroMedico').value;
-    const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
-    
-    // Índices baseados na sua estrutura de dados:
-    const K_DATA = 1; // Coluna "Data do plantao: "
-    const K_MEDICO = 3; // Coluna "Nome do medico..."
+        // --- FUNÇÃO PARA FILTRAR OS DADOS (MANTIDA A LÓGICA ORIGINAL) ---
+        function filterData(data) {
+            const filtroMedico = document.getElementById('filtroMedico').value;
+            const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
+            
+            // A sua função de loadDataFromSQLite já converte para a estrutura de objetos usando as constantes K_*
+            const filteredByMedico = data.filter(row => {
+                const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
+                return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
+            });
 
-    // 1. Filtrar por médico
-    const filteredByMedico = data.filter(row => {
-        const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
-        return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
-    });
-
-    if (!filtroData) {
-        return filteredByMedico;
-    }
-
-    // 2. Filtrar por data (normalizando TUDO para AAAA-MM-DD)
-    return filteredByMedico.filter(row => {
-        
-        // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
-        let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
-        let normalizedDate = null;
-        
-        if (!rawDate) {
-            return false;
-        }
-
-        // TENTA 1: Timestamp (número grande, ex: 1672531200000)
-        if (!isNaN(rawDate) && rawDate.length > 10) {
-            const dateObj = new Date(parseInt(rawDate, 10));
-            normalizedDate = dateObj.toISOString().substring(0, 10); // AAAA-MM-DD
-        }
-        // TENTA 2: Formato Brasileiro (DD/MM/AAAA)
-        else if (rawDate.includes('/') && rawDate.length >= 8) {
-            const parts = rawDate.substring(0, 10).split('/');
-            if (parts.length === 3 && parts[2].length === 4) {
-                // Converte para AAAA-MM-DD
-                normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            if (!filtroData) {
+                return filteredByMedico;
             }
-        } 
-        // TENTA 3: Formato ISO/DB (AAAA-MM-DD HH:MM:SS ou AAAA-MM-DD)
-        else if (rawDate.includes('-') && rawDate.length >= 10) {
-            normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
-        }
-        
-        // --- DEPURADOR CRÍTICO ATIVO ---
-        console.log(`Filtro (Input): ${filtroData} | DB Raw: [${rawDate}] | DB Normalized: [${normalizedDate}]`);
 
-        const isDataMatch = normalizedDate === filtroData;
-        return isDataMatch;
-    });
-}
+            // A lógica do filtro de data precisa ser corrigida para usar o K_DATA e esperar o formato DD/MM/AAAA ou ISO
+            return filteredByMedico.filter(row => {
+                
+                // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
+                let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
+                let normalizedDate = null;
+                
+                if (!rawDate) {
+                    return false;
+                }
+
+                // TENTA 1: Timestamp (número grande, ex: 1672531200000)
+                if (!isNaN(rawDate) && rawDate.length > 10) {
+                    const dateObj = new Date(parseInt(rawDate, 10));
+                    normalizedDate = dateObj.toISOString().substring(0, 10); // AAAA-MM-DD
+                }
+                // TENTA 2: Formato Brasileiro (DD/MM/AAAA)
+                else if (rawDate.includes('/') && rawDate.length >= 8) {
+                    const parts = rawDate.substring(0, 10).split('/');
+                    if (parts.length === 3 && parts[2].length === 4) {
+                        // Converte para AAAA-MM-DD
+                        normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    }
+                } 
+                // TENTA 3: Formato ISO/DB (AAAA-MM-DD HH:MM:SS ou AAAA-MM-DD)
+                else if (rawDate.includes('-') && rawDate.length >= 10) {
+                    normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
+                }
+                
+                // console.log(`Filtro (Input): ${filtroData} | DB Raw: [${rawDate}] | DB Normalized: [${normalizedDate}]`);
+
+                const isDataMatch = normalizedDate === filtroData;
+                return isDataMatch;
+            });
+        }
         
         function populateMedicoFilter(data) {
             
