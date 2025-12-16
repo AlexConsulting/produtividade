@@ -255,9 +255,11 @@
                 const internalKeys = Object.keys(COLUMN_MAP_KEYS);
 
                 for (const dbColName of columns) {
+                    // Normaliza a string do nome da coluna do DB
                     const cleanDbColName = dbColName.toLowerCase().replace(/[\s\t:()-]/g, '');
 
                     for (const internalKey of internalKeys) {
+                        // Normaliza a string de busca
                         const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
                         
                         // Verifica se a string de correspondência está contida no nome da coluna do DB
@@ -307,7 +309,7 @@
                     
                     return newRow;
                 })
-                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== '');
+                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== ''); // Filtra linhas sem nome de médico
 
                 document.getElementById('loadingMessage').style.display = 'none';
                 db.close();
@@ -328,11 +330,13 @@
             }
         }
         
-        // --- FUNÇÕES DE DASHBOARD (Não alteradas, apenas movidas abaixo) ---
-        
+        // --- FUNÇÃO PARA FILTRAR OS DADOS (LÓGICA DE DATA E MÉDICO) CORRIGIDA ---
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value;
+            
+            // Se o filtro de data não estiver ativo, não há necessidade de conversão complexa.
+            const hasDateFilter = !!filtroData;
             
             return data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
@@ -340,8 +344,26 @@
                 
                 let isDataMatch = true;
 
-                if (filtroData) {
-                    const standardizedRowData = String(row[K_DATA] || '').substring(0, 10); 
+                if (hasDateFilter) {
+                    const rawDate = String(row[K_DATA] || '').substring(0, 10).trim();
+                    
+                    // Tenta detectar e converter a data (DD/MM/AAAA -> YYYY-MM-DD)
+                    let standardizedRowData = rawDate;
+
+                    // 1. Tenta formato DD/MM/AAAA (comum de CSV/Excel)
+                    if (rawDate.includes('/') && rawDate.length === 10) {
+                        const parts = rawDate.split('/');
+                        if (parts.length === 3) {
+                            // Converte DD/MM/AAAA para AAAA-MM-DD
+                            standardizedRowData = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                    } 
+                    // 2. Remove o TimeStamp, se houver, para formato ISO (AAAA-MM-DD)
+                    else if (rawDate.includes('-') && rawDate.length > 10) {
+                         standardizedRowData = rawDate.substring(0, 10);
+                    }
+                    
+                    // A comparação agora é feita entre AAAA-MM-DD do DB (convertido ou já em ISO) e AAAA-MM-DD do Input
                     isDataMatch = standardizedRowData === filtroData;
                 }
 
@@ -467,12 +489,14 @@
         }
         
         function createCharts(data) {
+            // Destrói instâncias anteriores para evitar vazamento de memória e sobreposição
             if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
             if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
             if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
             if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
             if (medicacoesChartInstance) medicacoesChartInstance.destroy();
 
+            // 1. Produtividade por Médico
             const produtividadeMedico = getProdutividadePorMedicoData(data);
             produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
                 type: 'bar',
@@ -495,6 +519,7 @@
                                 font: { size: 10 },
                                 callback: function(value, index, values) {
                                     const label = this.getLabelForValue(value);
+                                    // Quebra o nome do médico em múltiplas linhas se for muito longo
                                     if (label && label.length > 20) { return label.split(' '); }
                                     return label;
                                 }
@@ -505,6 +530,7 @@
                 }
             });
 
+            // 2. Atendimentos por Dia da Semana
             const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
             atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
                 type: 'line',
@@ -527,6 +553,7 @@
                 }
             });
 
+            // 3. Exames Solicitados por Médico (Gráfico Empilhado)
             const examesPorMedicoData = getExamesPorMedicoData(data);
             examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
                 type: 'bar',
@@ -546,6 +573,7 @@
                 }
             });
             
+            // 4. Medicações Prescritas por Médico (Total)
             const medicacoesPorMedicoData = getMedicacoesPorMedicoData(data);
             medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
                 type: 'bar',
@@ -568,6 +596,7 @@
                 }
             });
 
+            // 5. Medicações Prescritas (Total Geral)
             const medicacoes = getMedicacoesData(data);
             medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
                 type: 'bar',
@@ -599,6 +628,7 @@
                 populateMedicoFilter(allData);
                 updateDashboard();
 
+                // Adiciona os event listeners
                 document.getElementById('filtroMedico').onchange = updateDashboard;
                 document.getElementById('filtroData').onchange = updateDashboard;
             } else {
