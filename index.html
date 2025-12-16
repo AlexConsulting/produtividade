@@ -67,6 +67,10 @@
             Carregando dados do Banco de Dados SQLite...
         </div>
         
+        <div id="filterAlert" class="alert alert-warning text-center" role="alert" style="display:none;">
+            <strong>⚠️ Nenhum dado encontrado.</strong> O filtro de Data (A partir de) e/ou Médico não retornou registros.
+        </div>
+        
         <section id="filters" class="mb-4 p-4 chart-container">
             <h4 class="mb-3">Fonte de Dados e Filtros</h4>
             <div class="row g-3">
@@ -81,7 +85,7 @@
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label for="filtroData" class="form-label fw-bold">3. Filtrar por Data:</label>
+                    <label for="filtroData" class="form-label fw-bold">3. Filtrar por Data (A partir de):</label>
                     <input type="date" class="form-control" id="filtroData" disabled>
                 </div>
             </div>
@@ -332,7 +336,7 @@
             }
         }
         
-        // --- FUNÇÃO CORRIGIDA/COM DEBUG PARA FILTRAR OS DADOS ---
+        // --- FUNÇÃO CORRIGIDA/COM DEBUG PARA FILTRAR OS DADOS (LÓGICA: >=) ---
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
@@ -347,7 +351,7 @@
                 return filteredByMedico;
             }
 
-            // 2. Filtrar por data
+            // 2. Filtrar por data (LÓGICA: MAIOR OU IGUAL (>=) - A PARTIR DE)
             return filteredByMedico.filter(row => {
                 
                 // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
@@ -376,13 +380,12 @@
                     normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
                 }
                 
-                const isDataMatch = normalizedDate === filtroData;
+                // ** A MUDANÇA: Comparação de strings YYYY-MM-DD com MAIOR OU IGUAL (>=) **
+                const isDataMatch = normalizedDate >= filtroData;
 
-                // --- ADICIONADO: LOG DE DEBUG PARA O USUÁRIO VER O QUE ESTÁ A ACONTECER ---
-                // Só loga se um filtro de data estiver ativo
-                console.log(`[DEBUG DATE] Input Filtro: ${filtroData} | Raw DB: [${rawDate}] | Normalized: [${normalizedDate}] | Match: ${isDataMatch}`);
-                // --------------------------------------------------------------------------
-
+                // LOG DE DEBUG
+                console.log(`[DEBUG DATE] TIPO DE FILTRO: MAIOR OU IGUAL (>=) | Input Filtro: ${filtroData} | Normalized: [${normalizedDate}] | Match: ${isDataMatch}`);
+                
                 return isDataMatch;
             });
         }
@@ -412,6 +415,8 @@
         function generateKPIs(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const totalAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
+            
+            // Verifica se o resultado é zero e formata para 0 se for o caso
             document.getElementById('totalAtendimentos').textContent = totalAtendimentos.toLocaleString('pt-BR');
             document.getElementById('totalAtendimentosMedico').textContent = totalAtendimentos.toLocaleString('pt-BR');
             
@@ -422,6 +427,7 @@
             } else {
                 tituloKPI.textContent = 'Atend. Total Geral';
             }
+            
             const totalEV = data.reduce((sum, row) => sum + (row[K_MED_EV] || 0), 0);
             document.getElementById('totalEV').textContent = totalEV.toLocaleString('pt-BR');
             const totalEcocardiogramas = data.reduce((sum, row) => sum + (row[K_ECHO] || 0), 0);
@@ -643,6 +649,20 @@
             }
         }
 
+        // --- FUNÇÃO ADICIONAL PARA GERENCIAR O ALERTA DE FILTRO VAZIO ---
+        function toggleFilterAlert(show) {
+            const alertDiv = document.getElementById('filterAlert');
+            if (show) {
+                alertDiv.style.display = 'block';
+                // Esconde o alerta automaticamente após 8 segundos
+                setTimeout(() => {
+                    alertDiv.style.display = 'none';
+                }, 8000); 
+            } else {
+                alertDiv.style.display = 'none';
+            }
+        }
+
 
         // --- INICIALIZAÇÃO E EVENTOS ---
 
@@ -666,8 +686,18 @@
         
         function updateDashboard() {
             const filteredData = filterData(allData);
-            generateKPIs(filteredData);
-            createCharts(filteredData);
+
+            // NOVO: Verifica se há dados filtrados e gerencia o alerta
+            if (filteredData.length === 0) {
+                toggleFilterAlert(true);
+                // Gera KPIs e Charts com dados vazios para zerar a interface
+                generateKPIs([]); 
+                createCharts([]);
+            } else {
+                toggleFilterAlert(false);
+                generateKPIs(filteredData);
+                createCharts(filteredData);
+            }
         }
 
         // Chamada de inicialização
