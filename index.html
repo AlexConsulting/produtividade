@@ -190,31 +190,32 @@
         const K_MED_INAL = 'med_inal';
         const K_DIA_SEMANA = 'dia_semana';
         
-        // --- COLUNAS SQLITE CORRIGIDAS (Assumindo conversão para snake_case a partir do CSV) ---
-        const DB_COLUMNS = [
-            'data_do_plantao', // Corrigido
-            'nome_do_medico', // Corrigido
-            'total_de_atendimento_novos_atendimentos_e_reavalicoes', // Corrigido
-            'numero_de_ecocardiograma', 
-            'numero_de_eletrocardiograma', 
-            'numero_de_laboratoriais', 
-            'numero_de_rx', 
-            'tomografias', 
-            'usg', 
-            'medicacao_prescritas_ev', // Corrigido
-            'medicacao_prescritas_im', // Corrigido
-            'medicacao_subcultanea', // Corrigido
-            'medicacao_vo_ou_subligual', // Corrigido
-            'medicacao_oftalmica', // Corrigido
-            'ilacao', // Assumindo 'ilacao' do conversor para 'ILAcaO'
-            'dia_da_sema' // Corrigido
+        // --- COLUNAS SQLITE CORRIGIDAS LITERALMENTE (USANDO ESPAÇOS E CARACTERES ESPECIAIS) ---
+        // Usaremos nomes literais com aspas duplas na consulta e no acesso aos dados (row["Nome Literal"]).
+        const DB_COLUMNS_LITERAL = [
+            'Data do plantao:  ', 
+            'Nome do medico (nome completo,  maiusculo) : ', 
+            'Total de atendimento novos atendimentos e reavalicões: ',
+            'Numero de ecocardiograma', 
+            'Numero de eletrocardiograma', 
+            'Numero de laboratoriais', 
+            'Numero de RX', 
+            'Tomografias', 
+            'USG', 
+            'Medicacao prescritas EV', 
+            'Medicacao prescritas IM', 
+            'Medicacao Subcultanea', 
+            'Medicacao VO ou Subligual', 
+            'Medicacao OFTALMICA', 
+            'ILAcaO', 
+            'Dia da sema:'
         ];
 
         // 2. FUNÇÃO PARA LER OS DADOS DO ARQUIVO SQLITE USANDO SQL.JS
         async function loadDataFromSQLite() {
             document.getElementById('loadingMessage').style.display = 'block';
             
-            // CORREÇÃO DO REFERENCE ERROR: DB_FILE definido fora do bloco try
+            // CORREÇÃO: DB_FILE definido fora do bloco try
             const DB_FILE = 'produtividade.db'; 
             
             try {
@@ -234,8 +235,12 @@
                 // Assumindo que o nome da tabela seja 'produtividade'
                 const tableName = 'produtividade'; 
                 
-                // Executa a consulta (usa a lista de colunas corrigida)
-                const res = db.exec(`SELECT ${DB_COLUMNS.join(', ')} FROM ${tableName}`);
+                // CORREÇÃO CRÍTICA: Envolver nomes de colunas com aspas duplas (") para o SQLITE
+                // .trim() para remover espaços extras no final, que causam problemas no SQL.
+                const quotedColumns = DB_COLUMNS_LITERAL.map(col => `"${col.trim()}"`).join(', ');
+
+                // Executa a consulta
+                const res = db.exec(`SELECT ${quotedColumns} FROM ${tableName}`);
                 
                 if (res.length === 0) {
                     return [];
@@ -247,32 +252,40 @@
                 // Processamento dos dados
                 let processedData = values.map(rowValues => {
                     let row = {};
+                    // Mapeia os valores para as chaves literais retornadas pela consulta
                     columns.forEach((col, index) => {
                         row[col] = rowValues[index];
                     });
                     
                     let newRow = {};
                     
-                    // --- MAPEAMENTO CORRIGIDO PARA OS NOVOS NOMES DE COLUNA DO DB ---
-                    newRow[K_DATA] = row.data_do_plantao;
-                    newRow[K_MEDICO] = row.nome_do_medico; 
-                    newRow[K_ATEND_TOTAL] = Number(row.total_de_atendimento_novos_atendimentos_e_reavalicoes) || 0;
+                    // --- MAPEAMENTO CORRIGIDO PARA ACESSAR OS NOMES LITERAIS (row["Nome Literal"]) ---
                     
-                    newRow[K_ECHO] = Number(row.numero_de_ecocardiograma) || 0;
-                    newRow[K_ELETRO] = Number(row.numero_de_eletrocardiograma) || 0;
-                    newRow[K_LAB] = Number(row.numero_de_laboratoriais) || 0;
-                    newRow[K_RX] = Number(row.numero_de_rx) || 0;
-                    newRow[K_TOMO] = Number(row.tomografias) || 0;
-                    newRow[K_USG] = Number(row.usg) || 0;
+                    // Nota: O nome da coluna pode ter sido truncado ou limpo pelo SQLite ao criar a tabela.
+                    // Para garantir, vamos tentar o nome original primeiro, e depois versões mais limpas, se houver problemas.
                     
-                    newRow[K_MED_EV] = Number(row.medicacao_prescritas_ev) || 0;
-                    newRow[K_MED_IM] = Number(row.medicacao_prescritas_im) || 0;
-                    newRow[K_MED_SUBCUT] = Number(row.medicacao_subcultanea) || 0; 
-                    newRow[K_MED_VO] = Number(row.medicacao_vo_ou_subligual) || 0; 
-                    newRow[K_MED_OFTAL] = Number(row.medicacao_oftalmica) || 0;
-                    newRow[K_MED_INAL] = Number(row.ilacao) || 0; // Mapeado para 'ilacao' (assumindo o conversor)
+                    // Tenta o nome literal que foi consultado (que deve ser o nome literal do CSV, mas sem os espaços finais, devido ao .trim() no quotedColumns)
+                    const dataKey = 'Data do plantao:'; // Tentativa mais provável após o .trim()
                     
-                    newRow[K_DIA_SEMANA] = row.dia_da_sema; 
+                    newRow[K_DATA] = row[dataKey] || row['Data do plantao:  '] || row['Data do plantao'] || row['Data do plantao: '];
+                    newRow[K_MEDICO] = row["Nome do medico (nome completo, maiusculo) : "];
+                    newRow[K_ATEND_TOTAL] = Number(row["Total de atendimento novos atendimentos e reavalicões: "]) || 0;
+                    
+                    newRow[K_ECHO] = Number(row["Numero de ecocardiograma"]) || 0;
+                    newRow[K_ELETRO] = Number(row["Numero de eletrocardiograma"]) || 0;
+                    newRow[K_LAB] = Number(row["Numero de laboratoriais"]) || 0;
+                    newRow[K_RX] = Number(row["Numero de RX"]) || 0;
+                    newRow[K_TOMO] = Number(row["Tomografias"]) || 0;
+                    newRow[K_USG] = Number(row["USG"]) || 0;
+                    
+                    newRow[K_MED_EV] = Number(row["Medicacao prescritas EV"]) || 0;
+                    newRow[K_MED_IM] = Number(row["Medicacao prescritas IM"]) || 0;
+                    newRow[K_MED_SUBCUT] = Number(row["Medicacao Subcultanea"]) || 0; 
+                    newRow[K_MED_VO] = Number(row["Medicacao VO ou Subligual"]) || 0; 
+                    newRow[K_MED_OFTAL] = Number(row["Medicacao OFTALMICA"]) || 0;
+                    newRow[K_MED_INAL] = Number(row["ILAcaO"]) || 0; 
+                    
+                    newRow[K_DIA_SEMANA] = row["Dia da sema:"]; 
                     
                     return newRow;
                 })
@@ -285,7 +298,7 @@
             } catch (error) {
                 document.getElementById('loadingMessage').style.display = 'none';
                 console.error('Erro ao carregar ou processar o SQLite:', error);
-                // DB_FILE pode ser usado aqui
+                // DB_FILE está definido aqui, corrigindo o ReferenceError
                 alert(`ERRO CRÍTICO: Não foi possível ler o SQLite. Verifique se o arquivo "${DB_FILE}" está no mesmo local do HTML e se a estrutura da tabela está correta. Detalhes: ${error.message}`);
                 return [];
             }
@@ -303,8 +316,6 @@
                 let isDataMatch = true;
 
                 if (filtroData) {
-                    // Compara apenas a parte da data, ignorando a hora
-                    // Note: o formato da data no DB deve ser YYYY-MM-DD para funcionar corretamente com input type="date"
                     const standardizedRowData = String(row[K_DATA] || '').substring(0, 10); 
                     isDataMatch = standardizedRowData === filtroData;
                 }
@@ -466,7 +477,7 @@
                                 font: { size: 10 },
                                 callback: function(value, index, values) {
                                     const label = this.getLabelForValue(value);
-                                    if (label.length > 20) { return label.split(' '); }
+                                    if (label && label.length > 20) { return label.split(' '); }
                                     return label;
                                 }
                             }
