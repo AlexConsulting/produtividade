@@ -101,19 +101,19 @@
                 </div>
                 <div class="col-lg-3 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm" id="kpi-atendimento-medico">
-                        <h5 class="card-title text-muted">Atend. Total Geral</h5>
+                        <h5 class="card-title text-muted">Novos Atendimentos</h5>
                         <p class="card-text fs-3 fw-bold text-success" id="totalAtendimentosMedico">0</p>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm">
-                        <h5 class="card-title text-muted">Total de Medicações EV</h5>
+                        <h5 class="card-title text-muted">Total de Reavaliações</h5>
                         <p class="card-text fs-3 fw-bold text-danger" id="totalEV">0</p>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm">
-                        <h5 class="card-title text-muted">Total de Ecocardiogramas</h5>
+                        <h5 class="card-title text-muted">Atend. + Reavaliações</h5>
                         <p class="card-text fs-3 fw-bold text-warning" id="totalEcocardiogramas">0</p>
                     </div>
                 </div>
@@ -179,7 +179,15 @@
         // --- DEFINIÇÃO DAS CHAVES INTERNAS (CHAVES LIMPAS PARA USO NO JS) ---
         const K_DATA = 'data';
         const K_MEDICO = 'medico'; 
-        const K_ATEND_TOTAL = 'atend_total';
+        
+        // CHAVES ORIGINAIS DO GRÁFICO (Mantidas para a lógica dos gráficos)
+        const K_ATEND_TOTAL = 'atend_total'; // TOTAL DE ATENDIMENTO
+        
+        // NOVAS CHAVES DE KPI
+        const K_ATEND_NOVO = 'atend_novo'; // NOVO ATENDIMENTO
+        const K_REAVALIACOES = 'reavaliacoes'; // REAVALIAÇÕES
+        const K_TOTAL_GERAL = 'total_geral_completo'; // TOTAL ATEND + REAVALIAÇÕES
+
         const K_ECHO = 'echo';
         const K_ELETRO = 'eletro';
         const K_LAB = 'lab';
@@ -198,7 +206,15 @@
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
-            [K_ATEND_TOTAL]: 'Total de atendimento',
+            
+            // CHAVES ORIGINAIS DO GRÁFICO
+            [K_ATEND_TOTAL]: 'Total de atendimento', 
+            
+            // NOVAS CHAVES DE KPI
+            [K_ATEND_NOVO]: 'Numero de Novos atendimentos:', 
+            [K_REAVALIACOES]: 'Numero Reavalicões', 
+            [K_TOTAL_GERAL]: 'Total de atendimento novos atendimentos e reavalicões:',
+
             [K_ECHO]: 'ecocardiograma',
             [K_ELETRO]: 'eletrocardiograma',
             [K_LAB]: 'laboratoriais',
@@ -287,6 +303,12 @@
                     newRow[K_DATA] = safeGet(K_DATA);
                     newRow[K_MEDICO] = safeGet(K_MEDICO);
                     newRow[K_ATEND_TOTAL] = safeGet(K_ATEND_TOTAL, true);
+                    
+                    // --- NOVOS CAMPOS PARA KPI ---
+                    newRow[K_ATEND_NOVO] = safeGet(K_ATEND_NOVO, true); 
+                    newRow[K_REAVALIACOES] = safeGet(K_REAVALIACOES, true);
+                    newRow[K_TOTAL_GERAL] = safeGet(K_TOTAL_GERAL, true); 
+                    // ----------------------------
                     
                     newRow[K_ECHO] = safeGet(K_ECHO, true);
                     newRow[K_ELETRO] = safeGet(K_ELETRO, true);
@@ -412,32 +434,40 @@
             document.getElementById('filtroData').disabled = false;
         }
 
+        // --- FUNÇÃO generateKPIs MODIFICADA PARA NOVAS MÉTRICAS ---
         function generateKPIs(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
-            const totalAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
             
-            // Verifica se o resultado é zero e formata para 0 se for o caso
-            document.getElementById('totalAtendimentos').textContent = totalAtendimentos.toLocaleString('pt-BR');
-            document.getElementById('totalAtendimentosMedico').textContent = totalAtendimentos.toLocaleString('pt-BR');
+            // KPI 1: Total Geral de Atendimentos (Mantém o original)
+            const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
+            document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
+            
+            // KPI 2: Novos Atendimentos (Anteriormente: Total Geral/Filtrado)
+            const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
+            document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
             
             const tituloKPI = document.querySelector('#kpi-atendimento-medico h5');
             if (filtroMedico !== 'todos') {
                 const primeiroNome = filtroMedico.split(' ')[0];
-                tituloKPI.textContent = `Atend. de ${primeiroNome} (Filtrado)`;
+                tituloKPI.textContent = `Novos Atend. de ${primeiroNome}`;
             } else {
-                tituloKPI.textContent = 'Atend. Total Geral';
+                tituloKPI.textContent = 'Novos Atendimentos';
             }
             
-            const totalEV = data.reduce((sum, row) => sum + (row[K_MED_EV] || 0), 0);
-            document.getElementById('totalEV').textContent = totalEV.toLocaleString('pt-BR');
-            const totalEcocardiogramas = data.reduce((sum, row) => sum + (row[K_ECHO] || 0), 0);
-            document.getElementById('totalEcocardiogramas').textContent = totalEcocardiogramas.toLocaleString('pt-BR');
+            // KPI 3: Total de Reavaliações (Anteriormente: Medicações EV)
+            const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
+            document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
+            
+            // KPI 4: Total Atend. + Reavaliações (Anteriormente: Ecocardiogramas)
+            const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
+            document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
         }
 
         function getProdutividadePorMedicoData(data) {
             const agrupado = data.reduce((acc, row) => {
                 const medico = String(row[K_MEDICO]).trim();
-                acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0);
+                // Utilizando a coluna K_ATEND_TOTAL (Total de atendimento) para os gráficos, conforme original
+                acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
                 return acc;
             }, {});
             
@@ -493,7 +523,7 @@
             const ordemDias = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
             const agrupado = data.reduce((acc, row) => {
                 const dia = row[K_DIA_SEMANA] ? String(row[K_DIA_SEMANA]).toUpperCase().trim() : 'N/A';
-                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0);
+                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0); // Usando K_ATEND_TOTAL
                 return acc;
             }, {});
             const labels = ordemDias.filter(dia => agrupado[dia] !== undefined);
