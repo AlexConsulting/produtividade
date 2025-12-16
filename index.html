@@ -81,21 +81,15 @@
         <section id="filters" class="mb-4 p-4 chart-container">
             <h4 class="mb-3">Filtros de Visualização</h4>
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="filtroMedico" class="form-label fw-bold">1. Filtrar por Médico:</label>
                     <select class="form-select" id="filtroMedico" disabled>
                         <option value="todos">Carregando...</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="filtroData" class="form-label fw-bold">2. Filtrar por Data (A partir de):</label>
                     <input type="date" class="form-control" id="filtroData" disabled>
-                </div>
-                <div class="col-md-4">
-                    <label for="filtroTurno" class="form-label fw-bold">3. Filtrar por Turno:</label>
-                    <select class="form-select" id="filtroTurno" disabled>
-                        <option value="todos">Carregando...</option>
-                    </select>
                 </div>
             </div>
             
@@ -215,7 +209,7 @@
         const K_ATEND_TOTAL = 'atend_total'; 
         const K_ATEND_NOVO = 'atend_novo'; 
         const K_REAVALIACOES = 'reavaliacoes'; 
-        const K_TOTAL_GERAL = 'total_geral_completo'; // Soma de K_ATEND_NOVO + K_REAVALIACOES
+        const K_TOTAL_GERAL = 'total_geral_completo'; // Agora será a soma de K_ATEND_NOVO + K_REAVALIACOES
         const K_ECHO = 'echo';
         const K_ELETRO = 'eletro';
         const K_LAB = 'lab';
@@ -229,9 +223,9 @@
         const K_MED_OFTAL = 'med_oftal';
         const K_MED_INAL = 'med_inal';
         const K_DIA_SEMANA = 'dia_semana';
-        const K_TURNO = 'turno'; // NOVO: Chave para Turno (Diurno/Noturno)
         
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (Versão Simplificada) ---
+        // K_TOTAL_GERAL será lido do DB mas seu valor será sobrescrito pela soma de NOVO + REAVAL
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
@@ -251,15 +245,13 @@
             [K_MED_VO]: 'VO ou Subligual',
             [K_MED_OFTAL]: 'OFTALMICA',
             [K_MED_INAL]: 'ILAcaO',
-            [K_DIA_SEMANA]: 'Dia da sema',
-            [K_TURNO]: 'Diurno Noturno' // NOVO: Mapeamento para a coluna de Turno
+            [K_DIA_SEMANA]: 'Dia da sema'
         };
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
         const DISPLAY_COLUMNS = {
             [K_DATA]: 'Data',
             [K_MEDICO]: 'Médico',
-            [K_TURNO]: 'Turno', // NOVO: Adicionado para exibição
             [K_ATEND_NOVO]: 'Novos Atendimentos',
             [K_REAVALIACOES]: 'Reavaliações',
             [K_TOTAL_GERAL]: 'Total Geral (N+R)',
@@ -280,7 +272,7 @@
         };
 
         const COLUMN_ORDER = [
-            K_DATA, K_MEDICO, K_TURNO, K_DIA_SEMANA, // K_TURNO adicionado
+            K_DATA, K_MEDICO, K_DIA_SEMANA, 
             K_ATEND_NOVO, K_REAVALIACOES, K_TOTAL_GERAL, K_ATEND_TOTAL, 
             K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG, 
             K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL
@@ -365,8 +357,8 @@
                     // --- NOVOS CAMPOS PARA KPI ---
                     newRow[K_ATEND_NOVO] = safeGet(K_ATEND_NOVO, true); 
                     newRow[K_REAVALIACOES] = safeGet(K_REAVALIACOES, true);
-                    // Campo K_TOTAL_GERAL: Força a ser a soma de Novos Atendimentos + Reavaliações
-                    safeGet(K_TOTAL_GERAL, true); 
+                    // Campo K_TOTAL_GERAL: Força a ser a soma de Novos Atendimentos + Reavaliações, conforme solicitado
+                    safeGet(K_TOTAL_GERAL, true); // Lê o valor original apenas para evitar warnings, mas não o usa
                     newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
                     // ----------------------------
                     
@@ -385,7 +377,6 @@
                     newRow[K_MED_INAL] = safeGet(K_MED_INAL, true); 
                     
                     newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
-                    newRow[K_TURNO] = safeGet(K_TURNO); // NOVO: Campo de Turno
                     
                     return newRow;
                 })
@@ -423,27 +414,19 @@
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
-            const filtroTurno = document.getElementById('filtroTurno').value; // NOVO: Filtro de Turno
             
             // 1. Filtrar por médico
-            let filteredData = data.filter(row => {
+            const filteredByMedico = data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
                 return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
             });
 
-            // 2. Filtrar por turno (NOVO)
-            filteredData = filteredData.filter(row => {
-                const turnoNome = row[K_TURNO] ? String(row[K_TURNO]).trim().toUpperCase() : '';
-                // Assume que os valores são "DIURNO", "NOTURNO", etc.
-                return filtroTurno === 'todos' || turnoNome === filtroTurno.toUpperCase();
-            });
-
             if (!filtroData) {
-                return filteredData;
+                return filteredByMedico;
             }
 
-            // 3. Filtrar por data (LÓGICA: MAIOR OU IGUAL (>=) - A PARTIR DE)
-            return filteredData.filter(row => {
+            // 2. Filtrar por data (LÓGICA: MAIOR OU IGUAL (>=) - A PARTIR DE)
+            return filteredByMedico.filter(row => {
                 
                 // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
                 let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
@@ -497,29 +480,8 @@
             });
             
             select.disabled = false;
+            document.getElementById('filtroData').disabled = false;
         }
-
-        // --- NOVO: FUNÇÃO PARA POPULAR O FILTRO DE TURNO ---
-        function populateTurnoFilter(data) {
-            const turnosValidos = data
-                .map(item => item[K_TURNO] ? String(item[K_TURNO]).trim().toUpperCase() : null)
-                .filter(turno => turno && turno !== ''); 
-
-            const turnos = [...new Set(turnosValidos)].sort();
-
-            const select = document.getElementById('filtroTurno');
-            select.innerHTML = '<option value="todos">Todos os Turnos</option>'; 
-            
-            turnos.forEach(turno => {
-                const option = document.createElement('option');
-                option.value = turno;
-                option.textContent = turno;
-                select.appendChild(option);
-            });
-            
-            select.disabled = false;
-        }
-
 
         // --- FUNÇÃO generateKPIs MODIFICADA PARA NOVAS MÉTRICAS ---
         function generateKPIs(data) {
@@ -551,7 +513,7 @@
         }
 
         function getProdutividadePorMedicoData(data) {
-            const agrupado = data.reduce((acc, row => {
+            const agrupado = data.reduce((acc, row) => {
                 const medico = String(row[K_MEDICO]).trim();
                 // Utilizando a coluna K_ATEND_TOTAL (Total de atendimento) para os gráficos, conforme original
                 acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
@@ -786,13 +748,11 @@
             document.getElementById('filtroMedico').value = 'todos';
             // Limpa o campo de data
             document.getElementById('filtroData').value = '';
-            // NOVO: Limpa o filtro de turno
-            document.getElementById('filtroTurno').value = 'todos'; 
             
             // Chama a função principal de atualização
             updateDashboard();
             
-            console.log("Filtros de Médico, Data e Turno limpos. Dashboard atualizado.");
+            console.log("Filtros de Médico e Data limpos. Dashboard atualizado.");
         }
 
         // --- NOVA FUNÇÃO PARA RENDERIZAR A TABELA DE DETALHES ---
@@ -864,24 +824,20 @@
 
             if (allData.length > 0) {
                 populateMedicoFilter(allData);
-                populateTurnoFilter(allData); // NOVO: Popular filtro de turno
                 updateDashboard();
 
                 // Adiciona os event listeners aos botões
                 document.getElementById('applyFiltersBtn').onclick = updateDashboard;
                 document.getElementById('clearFiltersBtn').onclick = clearFilters;
                 
-                // Habilita os elementos de filtro
+                // Habilita os botões de filtro
                 document.getElementById('applyFiltersBtn').disabled = false;
                 document.getElementById('clearFiltersBtn').disabled = false;
-                document.getElementById('filtroData').disabled = false; // Habilita o filtro de data
-                document.getElementById('filtroTurno').disabled = false; // Habilita o filtro de turno
 
             } else {
                 // Desabilita filtros se não houver dados
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
-                document.getElementById('filtroTurno').disabled = true;
                 
                 // Desabilita os botões em caso de erro/falta de dados
                 document.getElementById('applyFiltersBtn').disabled = true;
