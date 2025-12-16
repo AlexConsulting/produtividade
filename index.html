@@ -191,7 +191,6 @@
         const K_DIA_SEMANA = 'dia_semana';
         
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (Versão Simplificada) ---
-        // O código procurará pela coluna real do DB que contenha esta substring.
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
@@ -231,15 +230,14 @@
                 const buffer = await response.arrayBuffer();
                 const db = new SQL.Database(new Uint8Array(buffer));
                 
-                // 1. DESCOBRIR O NOME DA TABELA REAL (o conversor pode ter mudado)
+                // 1. DESCOBRIR O NOME DA TABELA REAL 
                 const tableRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
                 if (tableRes.length === 0) {
                     throw new Error("Nenhuma tabela de dados encontrada no banco de dados.");
                 }
-                const tableName = tableRes[0].values[0][0]; // Pega o primeiro nome de tabela
+                const tableName = tableRes[0].values[0][0]; 
                 
                 // 2. OBTER TODOS OS DADOS DA TABELA USANDO ASPAS DUPLAS NO SELECT *
-                // Isso garante que colunas com espaços sejam retornadas
                 const res = db.exec(`SELECT * FROM "${tableName}"`);
                 
                 if (res.length === 0 || res[0].values.length === 0) {
@@ -255,14 +253,11 @@
                 const internalKeys = Object.keys(COLUMN_MAP_KEYS);
 
                 for (const dbColName of columns) {
-                    // Normaliza a string do nome da coluna do DB
                     const cleanDbColName = dbColName.toLowerCase().replace(/[\s\t:()-]/g, '');
 
                     for (const internalKey of internalKeys) {
-                        // Normaliza a string de busca
                         const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
                         
-                        // Verifica se a string de correspondência está contida no nome da coluna do DB
                         if (cleanDbColName.includes(simpleMatchString) && !dbKeyToInternalKey[internalKey]) {
                             dbKeyToInternalKey[internalKey] = dbColName;
                             break; 
@@ -273,14 +268,12 @@
                 // 4. PROCESSAMENTO DOS DADOS USANDO O MAPA
                 let processedData = values.map(rowValues => {
                     let row = {};
-                    // Cria um objeto { Nome_Real_Coluna: Valor }
                     columns.forEach((col, index) => {
                         row[col] = rowValues[index];
                     });
                     
                     let newRow = {};
                     
-                    // Acessa o valor pelo nome real da coluna encontrado no dbKeyToInternalKey
                     const safeGet = (internalKey, isNumber = false) => {
                         const dbColName = dbKeyToInternalKey[internalKey];
                         const value = row[dbColName];
@@ -319,23 +312,32 @@
                 document.getElementById('loadingMessage').style.display = 'none';
                 console.error('Erro ao carregar ou processar o SQLite:', error);
                 
-                // Tenta exibir a mensagem de erro da biblioteca SQL.js ou do fetch
+                // --- MELHORIA: EXIBIR ERRO CRÍTICO NA INTERFACE ---
                 let errorMessage = error.message;
-                if (errorMessage.includes('Not Found')) {
+                if (errorMessage.includes('Not Found') || errorMessage.includes('404')) {
                     errorMessage = `O arquivo "${DB_FILE}" não foi encontrado. Certifique-se de que ele está no mesmo local do arquivo HTML.`;
+                } else if (errorMessage.includes('Nenhuma tabela')) {
+                    errorMessage = `O DB foi encontrado, mas está vazio ou corrompido.`;
                 }
                 
-                alert(`ERRO CRÍTICO: Não foi possível ler o SQLite. Detalhes: ${errorMessage}`);
+                // Atualiza o elemento para o usuário ver o erro
+                document.getElementById('data-source-label').innerHTML = `1. ERRO CRÍTICO: <span style="color:red;">${errorMessage}</span>`;
+                document.getElementById('dbFileName').style.color = 'red';
+                document.getElementById('totalAtendimentos').textContent = "ERRO";
+                document.getElementById('totalAtendimentosMedico').textContent = "---";
+                // ----------------------------------------------------
+
+                console.error(`ERRO CRÍTICO: Não foi possível ler o SQLite. Detalhes: ${errorMessage}`);
                 return [];
             }
         }
         
-        // --- FUNÇÃO PARA FILTRAR OS DADOS (MANTIDA A LÓGICA ORIGINAL) ---
+        // --- FUNÇÃO CORRIGIDA/COM DEBUG PARA FILTRAR OS DADOS ---
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
             
-            // A sua função de loadDataFromSQLite já converte para a estrutura de objetos usando as constantes K_*
+            // 1. Filtrar por médico
             const filteredByMedico = data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
                 return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
@@ -345,7 +347,7 @@
                 return filteredByMedico;
             }
 
-            // A lógica do filtro de data precisa ser corrigida para usar o K_DATA e esperar o formato DD/MM/AAAA ou ISO
+            // 2. Filtrar por data
             return filteredByMedico.filter(row => {
                 
                 // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
@@ -374,9 +376,13 @@
                     normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
                 }
                 
-                // console.log(`Filtro (Input): ${filtroData} | DB Raw: [${rawDate}] | DB Normalized: [${normalizedDate}]`);
-
                 const isDataMatch = normalizedDate === filtroData;
+
+                // --- ADICIONADO: LOG DE DEBUG PARA O USUÁRIO VER O QUE ESTÁ A ACONTECER ---
+                // Só loga se um filtro de data estiver ativo
+                console.log(`[DEBUG DATE] Input Filtro: ${filtroData} | Raw DB: [${rawDate}] | Normalized: [${normalizedDate}] | Match: ${isDataMatch}`);
+                // --------------------------------------------------------------------------
+
                 return isDataMatch;
             });
         }
@@ -508,124 +514,133 @@
 
             // 1. Produtividade por Médico
             const produtividadeMedico = getProdutividadePorMedicoData(data);
-            produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
-                type: 'bar',
-                data: {
-                    labels: produtividadeMedico.labels,
-                    datasets: [{
-                        label: 'Total de Atendimentos',
-                        data: produtividadeMedico.data,
-                        backgroundColor: colors.secundario,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false, 
-                    indexAxis: 'y', 
-                    scales: { 
-                        x: { beginAtZero: true },
-                        y: {
-                            ticks: {
-                                font: { size: 10 },
-                                callback: function(value, index, values) {
-                                    const label = this.getLabelForValue(value);
-                                    // Quebra o nome do médico em múltiplas linhas se for muito longo
-                                    if (label && label.length > 20) { return label.split(' '); }
-                                    return label;
+            if (produtividadeMedico.data.length > 0) {
+                 produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: produtividadeMedico.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: produtividadeMedico.data,
+                            backgroundColor: colors.secundario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false, 
+                        indexAxis: 'y', 
+                        scales: { 
+                            x: { beginAtZero: true },
+                            y: {
+                                ticks: {
+                                    font: { size: 10 },
+                                    callback: function(value, index, values) {
+                                        const label = this.getLabelForValue(value);
+                                        if (label && label.length > 20) { return label.split(' '); }
+                                        return label;
+                                    }
                                 }
                             }
-                        }
-                    },
-                    plugins: { legend: { display: false } }
-                }
-            });
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 2. Atendimentos por Dia da Semana
             const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
-            atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
-                type: 'line',
-                data: {
-                    labels: atendimentosDiaSemana.labels,
-                    datasets: [{
-                        label: 'Total de Atendimentos',
-                        data: atendimentosDiaSemana.data,
-                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
-                        borderColor: colors.primario,
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
-            });
+            if (atendimentosDiaSemana.data.length > 0) {
+                atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
+                    type: 'line',
+                    data: {
+                        labels: atendimentosDiaSemana.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: atendimentosDiaSemana.data,
+                            backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                            borderColor: colors.primario,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 3. Exames Solicitados por Médico (Gráfico Empilhado)
             const examesPorMedicoData = getExamesPorMedicoData(data);
-            examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
-                type: 'bar',
-                data: examesPorMedicoData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            stacked: true, 
-                            title: { display: true, text: 'Médicos' },
-                            ticks: { font: { size: 10 } }
+            if (examesPorMedicoData.labels.length > 0) {
+                examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
+                    type: 'bar',
+                    data: examesPorMedicoData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { 
+                                stacked: true, 
+                                title: { display: true, text: 'Médicos' },
+                                ticks: { font: { size: 10 } }
+                            },
+                            y: { stacked: true, beginAtZero: true }
                         },
-                        y: { stacked: true, beginAtZero: true }
-                    },
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
             
             // 4. Medicações Prescritas por Médico (Total)
             const medicacoesPorMedicoData = getMedicacoesPorMedicoData(data);
-            medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
-                type: 'bar',
-                data: {
-                    labels: medicacoesPorMedicoData.labels,
-                    datasets: [{
-                        label: 'Total de Medicações',
-                        data: medicacoesPorMedicoData.data,
-                        backgroundColor: colors.roxo,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { 
-                        y: { beginAtZero: true },
-                        x: { ticks: { font: { size: 10 } } }
+            if (medicacoesPorMedicoData.data.length > 0) {
+                medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: medicacoesPorMedicoData.labels,
+                        datasets: [{
+                            label: 'Total de Medicações',
+                            data: medicacoesPorMedicoData.data,
+                            backgroundColor: colors.roxo,
+                        }]
                     },
-                    plugins: { legend: { display: false } }
-                }
-            });
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { 
+                            y: { beginAtZero: true },
+                            x: { ticks: { font: { size: 10 } } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 5. Medicações Prescritas (Total Geral)
             const medicacoes = getMedicacoesData(data);
-            medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
-                type: 'bar',
-                data: {
-                    labels: medicacoes.labels,
-                    datasets: [{
-                        label: 'Total de Prescrições',
-                        data: medicacoes.data,
-                        backgroundColor: colors.amarelo,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y', 
-                    scales: { x: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
-            });
+            if (medicacoes.data.length > 0) {
+                medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: medicacoes.labels,
+                        datasets: [{
+                            label: 'Total de Prescrições',
+                            data: medicacoes.data,
+                            backgroundColor: colors.amarelo,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
         }
 
 
@@ -642,9 +657,9 @@
                 document.getElementById('filtroMedico').onchange = updateDashboard;
                 document.getElementById('filtroData').onchange = updateDashboard;
             } else {
+                // Desabilita filtros se não houver dados
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
-                document.getElementById('totalAtendimentos').textContent = "ERRO";
                 console.log("Não há dados para exibir.");
             }
         }
