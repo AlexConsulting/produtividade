@@ -144,7 +144,7 @@
                 </div>
             </div>
 
-            <h5 class="mt-4 mb-3 text-muted">Novos Atendimentos por Turno (Filtros Aplicados)</h5>
+            <h5 class="mt-4 mb-3 text-muted">Novos Atendimentos por Turno</h5>
             <div class="row text-center">
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #007bff !important;">
@@ -165,6 +165,48 @@
                     </div>
                 </div>
             </div>
+
+            <h5 class="mt-4 mb-3 text-muted">Fichas de Classificação de Risco</h5>
+            <div class="row text-center">
+                <div class="col-lg-2-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #28a745 !important;">
+                        <h5 class="card-title text-muted">Fichas VERDES</h5>
+                        <p class="card-text fs-3 fw-bold text-success" id="kpiFichasVerdes">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-2-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #ffc107 !important;">
+                        <h5 class="card-title text-muted">Fichas AMARELAS</h5>
+                        <p class="card-text fs-3 fw-bold text-warning" id="kpiFichasAmarelas">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-2-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #fd7e14 !important;">
+                        <h5 class="card-title text-muted">Fichas LARANJAS</h5>
+                        <p class="card-text fs-3 fw-bold" style="color: #fd7e14;" id="kpiFichasLaranjas">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-2-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #007bff !important;">
+                        <h5 class="card-title text-muted">Fichas AZUIS</h5>
+                        <p class="card-text fs-3 fw-bold text-primary" id="kpiFichasAzuis">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-2-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #adb5bd !important;">
+                        <h5 class="card-title text-muted">Fichas BRANCAS</h5>
+                        <p class="card-text fs-3 fw-bold text-secondary" id="kpiFichasBrancas">0</p>
+                    </div>
+                </div>
+            </div>
+            <style>
+                @media (min-width: 992px) {
+                    .col-lg-2-4 {
+                        flex: 0 0 auto;
+                        width: 20%; /* 100% / 5 = 20% */
+                    }
+                }
+            </style>
         </section>
 
         <section id="charts">
@@ -204,7 +246,7 @@
         
         <section id="detailed-data" class="mb-5">
             <div class="chart-container p-4">
-                <h4 class="mb-3" id="detailed-data-title">Detalhes da Produtividade (Filtros Aplicados)</h4>
+                <h4 class="mb-3" id="detailed-data-title">Detalhes da Produtividade</h4>
                 <div id="detailedTableContainer" style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd; border-radius: .3rem;">
                     <p class="text-center text-muted p-4 mb-0">Selecione um médico ou aplique filtros para carregar os dados detalhados.</p>
                 </div>
@@ -222,13 +264,14 @@
         let medicacoesChartInstance;
 
         const colors = {
-            primario: 'rgba(0, 123, 255, 0.7)',
-            secundario: 'rgba(40, 167, 69, 0.7)',
-            amarelo: 'rgba(255, 193, 7, 0.7)',
-            vermelho: 'rgba(220, 53, 69, 0.7)',
-            roxo: 'rgba(108, 99, 255, 0.7)',
+            primario: 'rgba(0, 123, 255, 0.7)', // Azul
+            secundario: 'rgba(40, 167, 69, 0.7)', // Verde
+            amarelo: 'rgba(255, 193, 7, 0.7)', // Amarelo
+            vermelho: 'rgba(220, 53, 69, 0.7)', // Vermelho/Perigo
+            roxo: 'rgba(108, 99, 255, 0.7)', 
             ciano: 'rgba(23, 162, 184, 0.7)',
-            cinza: 'rgba(108, 117, 125, 0.7)'
+            cinza: 'rgba(108, 117, 125, 0.7)', // Cinza/Secundário
+            laranja: 'rgba(253, 126, 20, 0.7)' // Laranja
         };
 
         // --- DEFINIÇÃO DAS CHAVES INTERNAS (CHAVES LIMPAS PARA USO NO JS) ---
@@ -253,6 +296,14 @@
         const K_DIA_SEMANA = 'dia_semana';
         const K_TURNO = 'turno'; 
         
+        // NOVAS CHAVES PARA FICHA
+        const K_FICHA_VERDE = 'ficha_verde';
+        const K_FICHA_AMARELA = 'ficha_amarela';
+        const K_FICHA_LARANJA = 'ficha_laranja';
+        const K_FICHA_AZUL = 'ficha_azul';
+        const K_FICHA_BRANCA = 'ficha_branca';
+
+
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB ---
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
@@ -274,7 +325,14 @@
             [K_MED_OFTAL]: 'OFTALMICA',
             [K_MED_INAL]: 'ILAcaO',
             [K_DIA_SEMANA]: 'Dia da sema',
-            [K_TURNO]: 'Diurno ou noturno'
+            [K_TURNO]: 'Diurno ou noturno',
+
+            // NOVOS MAPEMANTOS DE FICHA (AJUSTE SE OS NOMES NO SEU DB FOREM DIFERENTES)
+            [K_FICHA_VERDE]: 'Numero de fichas verdes', 
+            [K_FICHA_AMARELA]: 'Numero de fichas amarelas', 
+            [K_FICHA_LARANJA]: 'Numero de fichas laranja', 
+            [K_FICHA_AZUL]: 'Numero de fichas azul', 
+            [K_FICHA_BRANCA]: 'Numero de fichas brancas' 
         };
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
@@ -282,10 +340,10 @@
             [K_DATA]: 'Data',
             [K_MEDICO]: 'Médico',
             [K_TURNO]: 'Turno', 
-            [K_ATEND_NOVO]: 'Novos Atendimentos',
+            [K_ATEND_NOVO]: 'Novos Atend.',
             [K_REAVALIACOES]: 'Reavaliações',
             [K_TOTAL_GERAL]: 'Total Geral (N+R)',
-            [K_ATEND_TOTAL]: 'Atend. Total (Original)',
+            [K_ATEND_TOTAL]: 'Atend. Total (Orig.)',
             [K_DIA_SEMANA]: 'Dia da Semana',
             [K_ECHO]: 'Echo',
             [K_ELETRO]: 'Eletro',
@@ -299,11 +357,18 @@
             [K_MED_VO]: 'Med. VO',
             [K_MED_OFTAL]: 'Med. Oftál',
             [K_MED_INAL]: 'Med. Inal',
+            // NOVAS COLUNAS
+            [K_FICHA_VERDE]: 'Ficha V.',
+            [K_FICHA_AMARELA]: 'Ficha A.',
+            [K_FICHA_LARANJA]: 'Ficha L.',
+            [K_FICHA_AZUL]: 'Ficha Az.',
+            [K_FICHA_BRANCA]: 'Ficha B.'
         };
 
         const COLUMN_ORDER = [
             K_DATA, K_MEDICO, K_TURNO, K_DIA_SEMANA, 
             K_ATEND_NOVO, K_REAVALIACOES, K_TOTAL_GERAL, K_ATEND_TOTAL, 
+            K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA, // NOVOS
             K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG, 
             K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL
         ];
@@ -405,6 +470,13 @@
                     
                     newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
                     newRow[K_TURNO] = safeGet(K_TURNO); 
+                    
+                    // NOVAS FICHAS - ADICIONAR AO PROCESSAMENTO
+                    newRow[K_FICHA_VERDE] = safeGet(K_FICHA_VERDE, true);
+                    newRow[K_FICHA_AMARELA] = safeGet(K_FICHA_AMARELA, true);
+                    newRow[K_FICHA_LARANJA] = safeGet(K_FICHA_LARANJA, true);
+                    newRow[K_FICHA_AZUL] = safeGet(K_FICHA_AZUL, true);
+                    newRow[K_FICHA_BRANCA] = safeGet(K_FICHA_BRANCA, true);
                     
                     return newRow;
                 })
@@ -576,7 +648,7 @@
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
             
             // -------------------------------------------------------------------
-            // NOVO CÁLCULO: Novos Atendimentos por Turno
+            // CÁLCULO: Novos Atendimentos por Turno
             // -------------------------------------------------------------------
 
             const atendimentosPorTurno = data.reduce((acc, row) => {
@@ -597,10 +669,31 @@
                 return acc;
             }, { diurno: 0, intermediario: 0, noturno: 0 });
 
-            // Atualiza os novos cards
+            // Atualiza os cards de turno
             document.getElementById('kpiDiurno').textContent = atendimentosPorTurno.diurno.toLocaleString('pt-BR');
             document.getElementById('kpiIntermediario').textContent = atendimentosPorTurno.intermediario.toLocaleString('pt-BR');
             document.getElementById('kpiNoturno').textContent = atendimentosPorTurno.noturno.toLocaleString('pt-BR');
+
+
+            // -------------------------------------------------------------------
+            // NOVO CÁLCULO: Fichas por Classificação de Risco
+            // -------------------------------------------------------------------
+
+            const fichasPorClassificacao = data.reduce((acc, row) => {
+                acc.verde += row[K_FICHA_VERDE] || 0;
+                acc.amarela += row[K_FICHA_AMARELA] || 0;
+                acc.laranja += row[K_FICHA_LARANJA] || 0;
+                acc.azul += row[K_FICHA_AZUL] || 0;
+                acc.branca += row[K_FICHA_BRANCA] || 0;
+                return acc;
+            }, { verde: 0, amarela: 0, laranja: 0, azul: 0, branca: 0 });
+
+            // Atualiza os novos cards de ficha
+            document.getElementById('kpiFichasVerdes').textContent = fichasPorClassificacao.verde.toLocaleString('pt-BR');
+            document.getElementById('kpiFichasAmarelas').textContent = fichasPorClassificacao.amarela.toLocaleString('pt-BR');
+            document.getElementById('kpiFichasLaranjas').textContent = fichasPorClassificacao.laranja.toLocaleString('pt-BR');
+            document.getElementById('kpiFichasAzuis').textContent = fichasPorClassificacao.azul.toLocaleString('pt-BR');
+            document.getElementById('kpiFichasBrancas').textContent = fichasPorClassificacao.branca.toLocaleString('pt-BR');
         }
 
         function getProdutividadePorMedicoData(data) {
