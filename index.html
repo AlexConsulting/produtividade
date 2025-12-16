@@ -109,7 +109,7 @@
             </div>
             <div class="row g-3 mt-3">
                 <div class="col-md-12">
-                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: SQLite Local (produtividade.db)</label>
+                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: SQLite (produtividade.db)</label>
                     <input class="form-control" type="text" id="dbFileName" value="produtividade.db" readonly style="color:#007bff;">
                 </div>
             </div>
@@ -140,6 +140,28 @@
                     <div class="card kpi-card p-3 shadow-sm">
                         <h5 class="card-title text-muted">Atend. + Reavaliações</h5>
                         <p class="card-text fs-3 fw-bold text-warning" id="totalEcocardiogramas">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mt-4 mb-3 text-muted">Novos Atendimentos por Turno (Filtros Aplicados)</h5>
+            <div class="row text-center">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #007bff !important;">
+                        <h5 class="card-title text-muted">Novos Atend. - DIURNO</h5>
+                        <p class="card-text fs-3 fw-bold text-primary" id="kpiDiurno">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #ffc107 !important;">
+                        <h5 class="card-title text-muted">Novos Atend. - INTERMEDIÁRIO</h5>
+                        <p class="card-text fs-3 fw-bold text-warning" id="kpiIntermediario">0</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #28a745 !important;">
+                        <h5 class="card-title text-muted">Novos Atend. - NOTURNO</h5>
+                        <p class="card-text fs-3 fw-bold text-success" id="kpiNoturno">0</p>
                     </div>
                 </div>
             </div>
@@ -552,6 +574,33 @@
             // KPI 4: Atend. + Reavaliações. Usa K_TOTAL_GERAL, que agora está garantido de ser a soma correta.
             const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
+            
+            // -------------------------------------------------------------------
+            // NOVO CÁLCULO: Novos Atendimentos por Turno
+            // -------------------------------------------------------------------
+
+            const atendimentosPorTurno = data.reduce((acc, row) => {
+                // Normaliza o nome do turno para comparação
+                const turno = String(row[K_TURNO] || '').trim().toUpperCase();
+                const novos = row[K_ATEND_NOVO] || 0;
+                
+                // Use os nomes normalizados encontrados no banco de dados
+                if (turno === 'DIURNO') {
+                    acc.diurno += novos;
+                } else if (turno === 'INTERMEDIARIO') {
+                    acc.intermediario += novos;
+                } else if (turno === 'NOTURNO') {
+                    acc.noturno += novos;
+                }
+                // Ignora outros valores que não sejam os 3 esperados
+                
+                return acc;
+            }, { diurno: 0, intermediario: 0, noturno: 0 });
+
+            // Atualiza os novos cards
+            document.getElementById('kpiDiurno').textContent = atendimentosPorTurno.diurno.toLocaleString('pt-BR');
+            document.getElementById('kpiIntermediario').textContent = atendimentosPorTurno.intermediario.toLocaleString('pt-BR');
+            document.getElementById('kpiNoturno').textContent = atendimentosPorTurno.noturno.toLocaleString('pt-BR');
         }
 
         function getProdutividadePorMedicoData(data) {
