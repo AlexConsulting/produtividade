@@ -82,8 +82,8 @@
             <h4 class="mb-3">Filtros de Visualização</h4>
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label for="filtroMedico" class="form-label fw-bold">1. Filtrar por Médico:</label>
-                    <select class="form-select" id="filtroMedico" disabled>
+                    <label for="filtroMedico" class="form-label fw-bold">1. Filtrar por Médico (Use Ctrl/Cmd para múltiplos):</label>
+                    <select class="form-select" id="filtroMedico" multiple size="5" disabled>
                         <option value="todos">Carregando...</option>
                     </select>
                 </div>
@@ -252,8 +252,7 @@
             [K_MED_OFTAL]: 'OFTALMICA',
             [K_MED_INAL]: 'ILAcaO',
             [K_DIA_SEMANA]: 'Dia da sema',
-            // --- CORREÇÃO APLICADA AQUI ---
-            [K_TURNO]: 'Diurno ou noturno' // Corrigido para o nome exato do usuário
+            [K_TURNO]: 'Diurno ou noturno'
         };
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
@@ -330,14 +329,11 @@
                 const internalKeys = Object.keys(COLUMN_MAP_KEYS);
 
                 for (const dbColName of columns) {
-                    // Limpa o nome da coluna no DB (remove espaços, hífens, pontuações, etc.)
                     const cleanDbColName = dbColName.toLowerCase().replace(/[\s\t:()-]/g, '');
 
                     for (const internalKey of internalKeys) {
-                        // Limpa o nome de referência (do nosso map)
                         const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
                         
-                        // O fuzzy match: se a coluna do DB contém o nome de referência
                         if (cleanDbColName.includes(simpleMatchString) && !dbKeyToInternalKey[internalKey]) {
                             dbKeyToInternalKey[internalKey] = dbColName;
                             break; 
@@ -345,7 +341,6 @@
                     }
                 }
                 
-                // DEBUG: Loga o mapeamento final, incluindo a coluna real de 'turno'
                 console.log('[DEBUG DB] Mapeamento interno final:', dbKeyToInternalKey);
 
 
@@ -361,7 +356,6 @@
                     const safeGet = (internalKey, isNumber = false) => {
                         const dbColName = dbKeyToInternalKey[internalKey];
                         const value = row[dbColName];
-                        // Se for coluna de número (e não for nulo/vazio), tenta converter. Senão, retorna string vazia ou número zero.
                         return isNumber ? (Number(value) || 0) : (value || '');
                     };
 
@@ -388,11 +382,11 @@
                     newRow[K_MED_INAL] = safeGet(K_MED_INAL, true); 
                     
                     newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
-                    newRow[K_TURNO] = safeGet(K_TURNO); // Campo de Turno
+                    newRow[K_TURNO] = safeGet(K_TURNO); 
                     
                     return newRow;
                 })
-                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== ''); // Filtra linhas sem nome de médico
+                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== '');
 
                 document.getElementById('loadingMessage').style.display = 'none';
                 db.close();
@@ -420,14 +414,27 @@
         }
         
         function filterData(data) {
-            const filtroMedico = document.getElementById('filtroMedico').value;
-            const filtroData = document.getElementById('filtroData').value;
-            const filtroTurno = document.getElementById('filtroTurno').value;
             
-            // 1. Filtrar por médico
+            // --- MUDANÇA: Recupera Múltiplos Médicos Selecionados ---
+            const selectMedicoElement = document.getElementById('filtroMedico');
+            const selectedMedicos = Array.from(selectMedicoElement.selectedOptions)
+                                        .map(option => option.value.toUpperCase());
+            // --------------------------------------------------------
+
+            const filtroData = document.getElementById('filtroData').value;
+            const filtroTurno = document.getElementById('filtroTurno').value; 
+            
+            // 1. Filtrar por médico(s)
             let filteredData = data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
-                return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
+                
+                // Se selectedMedicos estiver vazio, significa 'todos'.
+                if (selectedMedicos.length === 0) {
+                    return true;
+                }
+                
+                // Se houver seleção, verifica se o nome do médico da linha está na lista selecionada.
+                return selectedMedicos.includes(medicoNome);
             });
 
             // 2. Filtrar por turno
@@ -479,7 +486,7 @@
             const medicos = [...new Set(nomesValidos)].sort();
 
             const select = document.getElementById('filtroMedico');
-            select.innerHTML = '<option value="todos">Todos os Médicos</option>'; 
+            select.innerHTML = ''; // Limpa o select para um campo multiple
             
             medicos.forEach(medico => {
                 const option = document.createElement('option');
@@ -498,7 +505,6 @@
 
             const turnos = [...new Set(turnosValidos)].sort();
 
-            // DEBUG: Loga os valores encontrados para diagnóstico
             console.log('[DEBUG FILTRO] Turnos únicos encontrados:', turnos);
 
             const select = document.getElementById('filtroTurno');
@@ -516,30 +522,40 @@
 
 
         function generateKPIs(data) {
-            const filtroMedico = document.getElementById('filtroMedico').value;
-            
+            // Se houver mais de um médico, o título do KPI muda
+            const selectElement = document.getElementById('filtroMedico');
+            const selectedMedicos = Array.from(selectElement.selectedOptions).map(option => option.value);
+
+            // KPI 1: Total Geral de Atendimentos (Mantém o original)
             const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
             document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
             
+            // KPI 2: Novos Atendimentos
             const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
             document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
             
             const tituloKPI = document.querySelector('#kpi-atendimento-medico h5');
-            if (filtroMedico !== 'todos') {
-                const primeiroNome = filtroMedico.split(' ')[0];
+            
+            if (selectedMedicos.length === 1) {
+                const primeiroNome = selectedMedicos[0].split(' ')[0];
                 tituloKPI.textContent = `Novos Atend. de ${primeiroNome}`;
+            } else if (selectedMedicos.length > 1) {
+                 tituloKPI.textContent = `Novos Atend. (Grupo Selecionado)`;
             } else {
                 tituloKPI.textContent = 'Novos Atendimentos';
             }
             
+            // KPI 3: Total de Reavaliações
             const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
             document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
             
+            // KPI 4: Atend. + Reavaliações. Usa K_TOTAL_GERAL, que agora está garantido de ser a soma correta.
             const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
         }
 
         function getProdutividadePorMedicoData(data) {
+            // Agrupa por médico (importante para gráficos mesmo quando o filtro é multi-select)
             const agrupado = data.reduce((acc, row) => { 
                 const medico = String(row[K_MEDICO]).trim();
                 acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
@@ -556,6 +572,7 @@
         function getExamesPorMedicoData(data) {
             const exameCols = [K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG];
             const labels = ['Ecocardiograma', 'Eletrocardiograma', 'Laboratoriais', 'RX', 'Tomografias', 'USG'];
+            // Garante que só médicos com dados na seleção apareçam
             const medicos = [...new Set(data.map(item => String(item[K_MEDICO]).trim()))].sort();
             
             const datasets = labels.map((label, index) => {
@@ -766,7 +783,11 @@
         }
         
         function clearFilters() {
-            document.getElementById('filtroMedico').value = 'todos';
+            // MUDANÇA: Desmarca todas as opções no campo multi-select
+            Array.from(document.getElementById('filtroMedico').options).forEach(option => {
+                option.selected = false;
+            });
+            
             document.getElementById('filtroData').value = '';
             document.getElementById('filtroTurno').value = 'todos'; 
             
@@ -777,12 +798,17 @@
 
         function renderDetailedTable(data) {
             const container = document.getElementById('detailedTableContainer');
-            const filtroMedico = document.getElementById('filtroMedico').value;
+            
+            const selectedMedicos = Array.from(document.getElementById('filtroMedico').selectedOptions).map(option => option.value);
             const filtroTurno = document.getElementById('filtroTurno').value;
             
             let titleText = `Detalhes dos Registros`;
-            if (filtroMedico !== 'todos') {
-                titleText += ` para: ${filtroMedico}`;
+            if (selectedMedicos.length > 0) {
+                if (selectedMedicos.length === 1) {
+                    titleText += ` para: ${selectedMedicos[0]}`;
+                } else {
+                    titleText += ` para ${selectedMedicos.length} Médicos Selecionados`;
+                }
             }
             if (filtroTurno !== 'todos') {
                 titleText += ` (Turno: ${filtroTurno})`;
