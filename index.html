@@ -232,6 +232,8 @@
         const K_TURNO = 'turno'; // NOVO: Chave para Turno (Diurno/Noturno)
         
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (Versão Simplificada) ---
+        // Se a coluna for "Diurno ou Noturno" ou "Diurno - Noturno" o matching pode falhar. 
+        // Vamos manter o nome completo e usar uma comparação de string mais simples.
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
@@ -252,14 +254,14 @@
             [K_MED_OFTAL]: 'OFTALMICA',
             [K_MED_INAL]: 'ILAcaO',
             [K_DIA_SEMANA]: 'Dia da sema',
-            [K_TURNO]: 'Diurno Noturno' // NOVO: Mapeamento para a coluna de Turno
+            [K_TURNO]: 'Diurno Noturno' // Mapeamento para a coluna de Turno
         };
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
         const DISPLAY_COLUMNS = {
             [K_DATA]: 'Data',
             [K_MEDICO]: 'Médico',
-            [K_TURNO]: 'Turno', // NOVO: Adicionado para exibição
+            [K_TURNO]: 'Turno', // Adicionado para exibição
             [K_ATEND_NOVO]: 'Novos Atendimentos',
             [K_REAVALIACOES]: 'Reavaliações',
             [K_TOTAL_GERAL]: 'Total Geral (N+R)',
@@ -336,12 +338,18 @@
                     for (const internalKey of internalKeys) {
                         const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
                         
+                        // O uso de 'includes' é o que faz o fuzzy match. 
+                        // Exemplo: "Diurno Noturno" no map vai casar com "DiurnoNoturno" ou "Diurno Noturno "
                         if (cleanDbColName.includes(simpleMatchString) && !dbKeyToInternalKey[internalKey]) {
                             dbKeyToInternalKey[internalKey] = dbColName;
                             break; 
                         }
                     }
                 }
+                
+                // DEBUG: Loga o mapeamento para que o usuário possa verificar qual coluna foi selecionada para o turno
+                console.log('[DEBUG DB] Mapeamento interno final:', dbKeyToInternalKey);
+
 
                 // 4. PROCESSAMENTO DOS DADOS USANDO O MAPA
                 let processedData = values.map(rowValues => {
@@ -385,7 +393,7 @@
                     newRow[K_MED_INAL] = safeGet(K_MED_INAL, true); 
                     
                     newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
-                    newRow[K_TURNO] = safeGet(K_TURNO); // NOVO: Campo de Turno
+                    newRow[K_TURNO] = safeGet(K_TURNO); // Campo de Turno
                     
                     return newRow;
                 })
@@ -419,11 +427,10 @@
             }
         }
         
-        // --- FUNÇÃO CORRIGIDA/COM DEBUG PARA FILTRAR OS DADOS (LÓGICA: >=) ---
         function filterData(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             const filtroData = document.getElementById('filtroData').value; // Sempre AAAA-MM-DD
-            const filtroTurno = document.getElementById('filtroTurno').value; // NOVO: Filtro de Turno
+            const filtroTurno = document.getElementById('filtroTurno').value; // Filtro de Turno
             
             // 1. Filtrar por médico
             let filteredData = data.filter(row => {
@@ -431,10 +438,10 @@
                 return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
             });
 
-            // 2. Filtrar por turno (NOVO)
+            // 2. Filtrar por turno
             filteredData = filteredData.filter(row => {
+                // TRATAMENTO ROBUSTO: Garante que o valor do turno seja tratado como string para comparação
                 const turnoNome = row[K_TURNO] ? String(row[K_TURNO]).trim().toUpperCase() : '';
-                // Assume que os valores são "DIURNO", "NOTURNO", etc.
                 return filtroTurno === 'todos' || turnoNome === filtroTurno.toUpperCase();
             });
 
@@ -445,7 +452,6 @@
             // 3. Filtrar por data (LÓGICA: MAIOR OU IGUAL (>=) - A PARTIR DE)
             return filteredData.filter(row => {
                 
-                // LIMPEZA AGRESSIVA: remove espaços, aspas simples, duplas e caracteres nulos
                 let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
                 let normalizedDate = null;
                 
@@ -453,25 +459,21 @@
                     return false;
                 }
 
-                // TENTA 1: Timestamp (número grande, ex: 1672531200000)
+                // Tenta todos os formatos de data conhecidos e converte para YYYY-MM-DD
                 if (!isNaN(rawDate) && rawDate.length > 10) {
                     const dateObj = new Date(parseInt(rawDate, 10));
                     normalizedDate = dateObj.toISOString().substring(0, 10); // AAAA-MM-DD
                 }
-                // TENTA 2: Formato Brasileiro (DD/MM/AAAA)
                 else if (rawDate.includes('/') && rawDate.length >= 8) {
                     const parts = rawDate.substring(0, 10).split('/');
                     if (parts.length === 3 && parts[2].length === 4) {
-                        // Converte para AAAA-MM-DD
                         normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                     }
                 } 
-                // TENTA 3: Formato ISO/DB (AAAA-MM-DD HH:MM:SS ou AAAA-MM-DD)
                 else if (rawDate.includes('-') && rawDate.length >= 10) {
                     normalizedDate = rawDate.substring(0, 10); // AAAA-MM-DD
                 }
                 
-                // ** A MUDANÇA: Comparação de strings YYYY-MM-DD com MAIOR OU IGUAL (>=) **
                 const isDataMatch = normalizedDate >= filtroData;
                 
                 return isDataMatch;
@@ -499,13 +501,18 @@
             select.disabled = false;
         }
 
-        // --- NOVO: FUNÇÃO PARA POPULAR O FILTRO DE TURNO ---
+        // --- FUNÇÃO CORRIGIDA/REFORÇADA PARA POPULAR O FILTRO DE TURNO ---
         function populateTurnoFilter(data) {
             const turnosValidos = data
+                // Garante que o K_TURNO seja extraído e limpo corretamente
                 .map(item => item[K_TURNO] ? String(item[K_TURNO]).trim().toUpperCase() : null)
+                // Filtra valores nulos ou vazios
                 .filter(turno => turno && turno !== ''); 
 
             const turnos = [...new Set(turnosValidos)].sort();
+
+            // DEBUG: Loga os valores encontrados para diagnóstico
+            console.log('[DEBUG FILTRO] Turnos únicos encontrados:', turnos);
 
             const select = document.getElementById('filtroTurno');
             select.innerHTML = '<option value="todos">Todos os Turnos</option>'; 
@@ -521,7 +528,6 @@
         }
 
 
-        // --- FUNÇÃO generateKPIs MODIFICADA PARA NOVAS MÉTRICAS ---
         function generateKPIs(data) {
             const filtroMedico = document.getElementById('filtroMedico').value;
             
@@ -550,12 +556,10 @@
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
         }
 
-        // --- FUNÇÃO CORRIGIDA ONDE ESTAVA O ERRO DE SINTAXE ---
+        // --- FUNÇÃO CORRIGIDA DE SINTAXE ---
         function getProdutividadePorMedicoData(data) {
-            // CORREÇÃO DE SINTAXE APLICADA AQUI: (acc, row => { mudou para (acc, row) => {
-            const agrupado = data.reduce((acc, row) => {
+            const agrupado = data.reduce((acc, row) => { // SINTAXE CORRIGIDA AQUI
                 const medico = String(row[K_MEDICO]).trim();
-                // Utilizando a coluna K_ATEND_TOTAL (Total de atendimento) para os gráficos, conforme original
                 acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
                 return acc;
             }, {});
@@ -768,12 +772,10 @@
             }
         }
 
-        // --- FUNÇÃO ADICIONAL PARA GERENCIAR O ALERTA DE FILTRO VAZIO ---
         function toggleFilterAlert(show) {
             const alertDiv = document.getElementById('filterAlert');
             if (show) {
                 alertDiv.style.display = 'block';
-                // Esconde o alerta automaticamente após 8 segundos
                 setTimeout(() => {
                     alertDiv.style.display = 'none';
                 }, 8000); 
@@ -782,28 +784,19 @@
             }
         }
         
-        // --- FUNÇÃO PARA LIMPAR FILTROS ---
         function clearFilters() {
-            // Reseta o filtro do médico para "Todos"
             document.getElementById('filtroMedico').value = 'todos';
-            // Limpa o campo de data
             document.getElementById('filtroData').value = '';
-            // NOVO: Limpa o filtro de turno
             document.getElementById('filtroTurno').value = 'todos'; 
             
-            // Chama a função principal de atualização
             updateDashboard();
             
             console.log("Filtros de Médico, Data e Turno limpos. Dashboard atualizado.");
         }
 
-        // --- NOVA FUNÇÃO PARA RENDERIZAR A TABELA DE DETALHES ---
         function renderDetailedTable(data) {
             const container = document.getElementById('detailedTableContainer');
             const filtroMedico = document.getElementById('filtroMedico').value;
-            
-            // Atualiza o título
-            const titleElement = document.getElementById('detailed-data-title');
             const filtroTurno = document.getElementById('filtroTurno').value;
             
             let titleText = `Detalhes dos Registros`;
@@ -813,7 +806,7 @@
             if (filtroTurno !== 'todos') {
                 titleText += ` (Turno: ${filtroTurno})`;
             }
-            titleElement.textContent = titleText;
+            document.getElementById('detailed-data-title').textContent = titleText;
 
 
             if (data.length === 0) {
@@ -826,7 +819,6 @@
             // 1. Cabeçalho (Header)
             tableHTML += `<thead><tr>`;
             COLUMN_ORDER.forEach(key => {
-                // Remove o texto entre parênteses para o cabeçalho da tabela (ex: Total Geral (N+R) vira Total Geral)
                 tableHTML += `<th scope="col" title="${DISPLAY_COLUMNS[key]}">${DISPLAY_COLUMNS[key].replace(/\s\(.*\)/, '')}</th>`;
             });
             tableHTML += `</tr></thead>`;
@@ -840,17 +832,23 @@
                     let alignment = 'text-start'; 
 
                     // Formatação e Alinhamento
-                    if (!isNaN(value) && value !== null && value !== '' && key !== K_DATA && key !== K_MEDICO && key !== K_TURNO && key !== K_DIA_SEMANA) {
-                         // Se for numérico, formatar e centralizar
+                    // NÃO formata K_DATA, K_MEDICO, K_TURNO, K_DIA_SEMANA
+                    const isNonNumericColumn = [K_DATA, K_MEDICO, K_TURNO, K_DIA_SEMANA].includes(key);
+
+                    if (!isNaN(value) && value !== null && value !== '' && !isNonNumericColumn) {
+                         // Se for numérico e não for coluna de texto, formatar e centralizar
                         value = Number(value).toLocaleString('pt-BR');
                         alignment = 'text-center'; 
                     } else if (key === K_DATA && value) {
-                        // Formatar data (assume YYYY-MM-DD ou formato compatível)
+                        // Formatar data 
                         const dateParts = String(value).substring(0, 10).split('-');
                         if (dateParts.length === 3) {
                              // YYYY-MM-DD -> DD/MM/YYYY
                             value = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
                         }
+                    } else if (isNonNumericColumn) {
+                        // Garante que as colunas de texto (Médico, Turno, Dia da Semana) fiquem à esquerda
+                        alignment = 'text-start'; 
                     }
                     
                     tableHTML += `<td class="${alignment}">${value || '-'}</td>`;
@@ -872,30 +870,26 @@
 
             if (allData.length > 0) {
                 populateMedicoFilter(allData);
-                populateTurnoFilter(allData); // NOVO: Popular filtro de turno
+                populateTurnoFilter(allData); 
                 updateDashboard();
 
-                // Adiciona os event listeners aos botões
                 document.getElementById('applyFiltersBtn').onclick = updateDashboard;
                 document.getElementById('clearFiltersBtn').onclick = clearFilters;
                 
-                // Habilita os elementos de filtro
                 document.getElementById('applyFiltersBtn').disabled = false;
                 document.getElementById('clearFiltersBtn').disabled = false;
-                document.getElementById('filtroData').disabled = false; // Habilita o filtro de data
-                document.getElementById('filtroTurno').disabled = false; // Habilita o filtro de turno
+                document.getElementById('filtroData').disabled = false; 
+                document.getElementById('filtroTurno').disabled = false; 
 
             } else {
-                // Desabilita filtros se não houver dados
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
                 document.getElementById('filtroTurno').disabled = true;
                 
-                // Desabilita os botões em caso de erro/falta de dados
                 document.getElementById('applyFiltersBtn').disabled = true;
                 document.getElementById('clearFiltersBtn').disabled = true;
                 
-                renderDetailedTable([]); // Garante que a tabela inicial mostre mensagem de erro/vazio
+                renderDetailedTable([]); 
                 console.log("Não há dados para exibir.");
             }
         }
@@ -903,22 +897,19 @@
         function updateDashboard() {
             const filteredData = filterData(allData);
 
-            // Verifica se há dados filtrados e gerencia o alerta
             if (filteredData.length === 0) {
                 toggleFilterAlert(true);
-                // Gera KPIs e Charts com dados vazios para zerar a interface
                 generateKPIs([]); 
                 createCharts([]);
-                renderDetailedTable([]); // ATUALIZA A TABELA COM DADOS VAZIOS
+                renderDetailedTable([]); 
             } else {
                 toggleFilterAlert(false);
                 generateKPIs(filteredData);
                 createCharts(filteredData);
-                renderDetailedTable(filteredData); // ATUALIZA A TABELA COM DADOS FILTRADOS
+                renderDetailedTable(filteredData); 
             }
         }
 
-        // Chamada de inicialização
         initDashboard();
 
     </script>
