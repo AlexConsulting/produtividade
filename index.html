@@ -72,23 +72,35 @@
         </div>
         
         <section id="filters" class="mb-4 p-4 chart-container">
-            <h4 class="mb-3">Fonte de Dados e Filtros</h4>
+            <h4 class="mb-3">Filtros de Visualização</h4>
             <div class="row g-3">
-                <div class="col-md-12 mb-3">
-                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">1. FONTE DE DADOS: SQLite Local (produtividade.db)</label>
-                    <input class="form-control" type="text" id="dbFileName" value="produtividade.db" readonly style="color:#007bff;">
-                </div>
                 <div class="col-md-6">
-                    <label for="filtroMedico" class="form-label fw-bold">2. Filtrar por Médico:</label>
+                    <label for="filtroMedico" class="form-label fw-bold">1. Filtrar por Médico:</label>
                     <select class="form-select" id="filtroMedico" disabled>
                         <option value="todos">Carregando...</option>
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label for="filtroData" class="form-label fw-bold">3. Filtrar por Data (A partir de):</label>
+                    <label for="filtroData" class="form-label fw-bold">2. Filtrar por Data (A partir de):</label>
                     <input type="date" class="form-control" id="filtroData" disabled>
                 </div>
             </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <button class="btn btn-primary w-100" id="applyFiltersBtn" disabled>Aplicar Filtros</button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-secondary w-100" id="clearFiltersBtn" disabled>Limpar Filtros</button>
+                </div>
+            </div>
+            <div class="row g-3 mt-3">
+                <div class="col-md-12">
+                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: SQLite Local (produtividade.db)</label>
+                    <input class="form-control" type="text" id="dbFileName" value="produtividade.db" readonly style="color:#007bff;">
+                </div>
+            </div>
+
         </section>
 
         <section id="kpis" class="mb-5">
@@ -347,7 +359,7 @@
                 }
                 
                 // Atualiza o elemento para o usuário ver o erro
-                document.getElementById('data-source-label').innerHTML = `1. ERRO CRÍTICO: <span style="color:red;">${errorMessage}</span>`;
+                document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">${errorMessage}</span>`;
                 document.getElementById('dbFileName').style.color = 'red';
                 document.getElementById('totalAtendimentos').textContent = "ERRO";
                 document.getElementById('totalAtendimentosMedico').textContent = "---";
@@ -406,7 +418,7 @@
                 const isDataMatch = normalizedDate >= filtroData;
 
                 // LOG DE DEBUG
-                console.log(`[DEBUG DATE] TIPO DE FILTRO: MAIOR OU IGUAL (>=) | Input Filtro: ${filtroData} | Normalized: [${normalizedDate}] | Match: ${isDataMatch}`);
+                // console.log(`[DEBUG DATE] TIPO DE FILTRO: MAIOR OU IGUAL (>=) | Input Filtro: ${filtroData} | Normalized: [${normalizedDate}] | Match: ${isDataMatch}`);
                 
                 return isDataMatch;
             });
@@ -692,6 +704,19 @@
                 alertDiv.style.display = 'none';
             }
         }
+        
+        // --- NOVA FUNÇÃO PARA LIMPAR FILTROS ---
+        function clearFilters() {
+            // Reseta o filtro do médico para "Todos"
+            document.getElementById('filtroMedico').value = 'todos';
+            // Limpa o campo de data
+            document.getElementById('filtroData').value = '';
+            
+            // Chama a função principal de atualização
+            updateDashboard();
+            
+            console.log("Filtros de Médico e Data limpos. Dashboard atualizado.");
+        }
 
 
         // --- INICIALIZAÇÃO E EVENTOS ---
@@ -703,13 +728,25 @@
                 populateMedicoFilter(allData);
                 updateDashboard();
 
-                // Adiciona os event listeners
-                document.getElementById('filtroMedico').onchange = updateDashboard;
-                document.getElementById('filtroData').onchange = updateDashboard;
+                // NOVO: Adiciona os event listeners aos botões
+                document.getElementById('applyFiltersBtn').onclick = updateDashboard;
+                document.getElementById('clearFiltersBtn').onclick = clearFilters;
+                
+                // NOVO: Habilita os botões de filtro
+                document.getElementById('applyFiltersBtn').disabled = false;
+                document.getElementById('clearFiltersBtn').disabled = false;
+
+                // NOTA: Os eventos onchange do filtroMedico e filtroData foram removidos para exigir o clique no botão "Aplicar Filtros".
+
             } else {
                 // Desabilita filtros se não houver dados
                 document.getElementById('filtroMedico').disabled = true;
                 document.getElementById('filtroData').disabled = true;
+                
+                // Desabilita os botões em caso de erro/falta de dados
+                document.getElementById('applyFiltersBtn').disabled = true;
+                document.getElementById('clearFiltersBtn').disabled = true;
+                
                 console.log("Não há dados para exibir.");
             }
         }
