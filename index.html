@@ -330,46 +330,59 @@
             }
         }
         
-        // --- FUNÇÃO PARA FILTRAR OS DADOS (LÓGICA DE DATA E MÉDICO) CORRIGIDA ---
-        function filterData(data) {
-            const filtroMedico = document.getElementById('filtroMedico').value;
-            const filtroData = document.getElementById('filtroData').value;
-            
-            // Se o filtro de data não estiver ativo, não há necessidade de conversão complexa.
-            const hasDateFilter = !!filtroData;
-            
-            return data.filter(row => {
-                const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
-                const isMedicoMatch = filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
-                
-                let isDataMatch = true;
+// --- FUNÇÃO PARA FILTRAR OS DADOS (CORREÇÃO DE DATA MAIS ROBUSTA E EXPLÍCITA) ---
+function filterData(data) {
+    const filtroMedico = document.getElementById('filtroMedico').value;
+    const filtroData = document.getElementById('filtroData').value; // Formato: AAAA-MM-DD
+    
+    // 1. FILTRO POR MÉDICO (Sempre simples)
+    const filteredByMedico = data.filter(row => {
+        const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
+        return filtroMedico === 'todos' || medicoNome === filtroMedico.toUpperCase();
+    });
 
-                if (hasDateFilter) {
-                    const rawDate = String(row[K_DATA] || '').substring(0, 10).trim();
-                    
-                    // Tenta detectar e converter a data (DD/MM/AAAA -> YYYY-MM-DD)
-                    let standardizedRowData = rawDate;
+    // Se não houver filtro de data, retorna apenas o filtro de médico
+    if (!filtroData) {
+        return filteredByMedico;
+    }
 
-                    // 1. Tenta formato DD/MM/AAAA (comum de CSV/Excel)
-                    if (rawDate.includes('/') && rawDate.length === 10) {
-                        const parts = rawDate.split('/');
-                        if (parts.length === 3) {
-                            // Converte DD/MM/AAAA para AAAA-MM-DD
-                            standardizedRowData = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                        }
-                    } 
-                    // 2. Remove o TimeStamp, se houver, para formato ISO (AAAA-MM-DD)
-                    else if (rawDate.includes('-') && rawDate.length > 10) {
-                         standardizedRowData = rawDate.substring(0, 10);
-                    }
-                    
-                    // A comparação agora é feita entre AAAA-MM-DD do DB (convertido ou já em ISO) e AAAA-MM-DD do Input
-                    isDataMatch = standardizedRowData === filtroData;
-                }
-
-                return isMedicoMatch && isDataMatch;
-            });
+    // O filtro de data está ativo. Normalizamos a data da linha para AAAA-MM-DD
+    return filteredByMedico.filter(row => {
+        
+        let rawDate = String(row[K_DATA] || '').trim();
+        let normalizedDate = null;
+        
+        if (!rawDate) {
+            return false; // Ignora linhas sem data
         }
+
+        // Tenta detectar e formatar o formato brasileiro DD/MM/AAAA
+        if (rawDate.includes('/') && rawDate.length >= 8) {
+            // Assume DD/MM/AAAA
+            const parts = rawDate.split('/');
+            
+            // Verifica se a estrutura é correta (Dia, Mês, Ano)
+            if (parts.length === 3 && parts[2].length === 4) {
+                // Converte para AAAA-MM-DD (Padrão ISO para comparação)
+                normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+        } 
+        // Se a data já estiver em formato ISO (AAAA-MM-DD ou AAAA-MM-DD HH:MM:SS)
+        else if (rawDate.includes('-') && rawDate.length >= 10) {
+            // Apenas pega a parte da data e remove o timestamp
+            normalizedDate = rawDate.substring(0, 10);
+        }
+        
+        // --- DEPURADOR DE FORMATO ---
+        // Abra o console (F12) do seu navegador para ver o que está acontecendo
+        // console.log(`Filtro: ${filtroData} | DB Raw: ${rawDate} | DB Normalized: ${normalizedDate}`);
+
+        // Compara a data da linha (normalizada) com a data do input
+        const isDataMatch = normalizedDate === filtroData;
+        
+        return isDataMatch;
+    });
+}
         
         function populateMedicoFilter(data) {
             
