@@ -819,16 +819,90 @@
             if (fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy(); 
 
             // 1. Produtividade por Médico
-            // ... (código inalterado)
+            const produtividade = getProdutividadePorMedicoData(data);
+            if (produtividade.data.length > 0) {
+                produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: produtividade.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: produtividade.data,
+                            backgroundColor: colors.primario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 2. Atendimentos por Dia da Semana
-            // ... (código inalterado)
+            const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
+            if (atendimentosDiaSemana.data.length > 0) {
+                atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: atendimentosDiaSemana.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: atendimentosDiaSemana.data,
+                            backgroundColor: colors.secundario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 3. Exames Solicitados por Médico (Gráfico Empilhado)
-            // ... (código inalterado)
+            const examesData = getExamesPorMedicoData(data);
+            if (examesData.labels.length > 0) {
+                examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
+                    type: 'bar',
+                    data: examesData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, beginAtZero: true },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
             
             // 4. Medicações Prescritas por Médico (Total)
-            // ... (código inalterado)
+            const medicacoesPorMedico = getMedicacoesPorMedicoData(data);
+            if (medicacoesPorMedico.data.length > 0) {
+                 medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: medicacoesPorMedico.labels,
+                        datasets: [{
+                            label: 'Total de Medicações Prescritas',
+                            data: medicacoesPorMedico.data,
+                            backgroundColor: colors.vermelho,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
 
             // 5. GRÁFICO: Fichas de Classificação de Risco
             const fichasData = getFichasData(data);
