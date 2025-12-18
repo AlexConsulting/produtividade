@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CliniMetrics: Dashboard de Produtividade Clínica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body { 
+            background-color: #f0f2f5; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .main-container {
+            background: white;
+            padding: 40px;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            color: #007bff;
+            font-weight: 700;
+            margin-bottom: 0;
+        }
+        .subtitle {
+            color: #495057;
+            font-size: 1.2rem;
+            margin-top: 5px;
+            margin-bottom: 30px;
+        }
+        .action-button {
+            padding: 20px 30px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 120px; /* Garante que os botões tenham a mesma altura */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .action-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-register {
+            background-color: #28a745; /* Verde */
+            border-color: #28a745;
+        }
+        .btn-register:hover {
+            background-color: #218838; 
+            border-color: #1e7e34;
+        }
+        .btn-consult {
+            background-color: #007bff; /* Azul */
+            border-color: #007bff;
+        }
+        .btn-consult:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+
+        /* Ícones para melhorar o visual */
+        .btn-register::before { content: "📝 "; }
+        .btn-consult::before { content: "📊 "; }
+
+        /* Estilo para o separador */
+        .separator {
+            font-size: 1.5rem;
+            color: #6c757d;
+            margin: 20px 0;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <h1 class="mb-2">HealthApp</h1>
+        <p class="subtitle">Sistema de Gestão e Análise de Produtividade Clínica</p>
+        
+        <div class="row g-4 mt-4">
+            
+            <div class="col-md-6">
+                <a href="cadastro.html" class="btn btn-register text-white w-100 action-button">
+                    CADASTRAR NOVOS DADOS
+                    <br><small></small>
+                </a>
+            </div>
+            
+            <div class="col-md-6">
+                <a href="dashboard.html" class="btn btn-consult text-white w-100 action-button">
+                    CONSULTAR DASHBOARD
+                    <br><small></small>
+                </a>
+            </div>
+            
+        </div>
+        
+        <p class="separator mt-4">—</p>
+        
+        <p class="text-muted">Ferramenta essencial para análise de produtividade.</p>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
