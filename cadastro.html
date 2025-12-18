@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro de Produtividade (ASP.NET)</title>
+    <title>Cadastro de Produtividade (Firebase)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
@@ -16,13 +16,16 @@
         }
         .section-title { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 20px; }
     </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
     <header class="cadastro-header">
         <div class="container">
             <h1 class="text-center">Formulário de Cadastro de Produtividade</h1>
-            <p class="text-center"></p>
+            <p class="text-center">Salvando dados diretamente no banco de dados</p>
         </div>
     </header>
 
@@ -87,11 +90,11 @@
                         <input type="number" class="form-control" id="Novos_Atendimentos" name="Numero de Novos atendimentos:" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="Numero_Reavalicoes" class="form-label">Número Reavalições</label>
+                        <label for="Numero_Reavalicoes" class="form-label">Número Reavalições:</label>
                         <input type="number" class="form-control" id="Numero_Reavalicoes" name="Numero Reavalicões" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="Total_atendimentos_completo" class="form-label">Total Geral - Novos Atendimentos e Reavalições:</label>
+                        <label for="Total_atendimentos_completo" class="form-label">Novos Atendimentos + Reavalições:</label>
                         <input type="number" class="form-control" id="Total_atendimentos_completo" name="Total de atendimento novos atendimentos e reavalicões:" value="0" min="0" required readonly>
                         <small class="text-muted">Calculado (Novos + Reavaliações)</small>
                     </div>
@@ -131,7 +134,7 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="saveButton">
-                    Salvar Registro no Banco de Dados
+                    Salvar Registro no Firebase
                 </button>
 
             </form>
@@ -139,6 +142,22 @@
     </main>
 
     <script>
+        // CONFIGURAÇÃO REAL DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
+            authDomain: "produtividade-4d98e.firebaseapp.com",
+            projectId: "produtividade-4d98e",
+            storageBucket: "produtividade-4d98e.firebasestorage.app",
+            messagingSenderId: "642824868640",
+            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
+            measurementId: "G-489RSTNQVT"
+        };
+
+        // Inicializa o Firebase e o Firestore
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('cadastroForm');
             const statusMessage = document.getElementById('statusMessage');
@@ -146,7 +165,6 @@
             const reavalInput = document.getElementById('Numero_Reavalicoes');
             const totalInput = document.getElementById('Total_atendimentos_completo');
 
-            // Lógica para calcular o total dinamicamente
             const updateSum = () => {
                 const novos = Number(novosInput.value) || 0;
                 const reaval = Number(reavalInput.value) || 0;
@@ -155,7 +173,7 @@
 
             novosInput.addEventListener('input', updateSum);
             reavalInput.addEventListener('input', updateSum);
-            updateSum(); // Inicializa o total
+            updateSum(); 
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -163,53 +181,35 @@
                 btnSalvar.disabled = true;
 
                 const formData = new FormData(form);
-                const data = {};
+                const dataToSave = {};
                 
-                // Popula o objeto de dados com os valores do formulário
                 formData.forEach((value, key) => {
-                    // Trata campos numéricos
                     if (document.querySelector(`[name="${key}"]`).type === 'number') {
-                        data[key] = Number(value) || 0;
+                        dataToSave[key] = Number(value) || 0;
                     } else {
-                        data[key] = value;
+                        dataToSave[key] = value;
                     }
                 });
 
-                // Insere o campo automático 'Carimbo de data/hora'
-                data["Carimbo de data/hora"] = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                
-                // O cálculo do Total de atendimento já foi feito na linha 144, mas garantimos que o nome da chave está correto
-                // Já está no FormData, mas apenas para garantir que o valor calculado (readonly) seja enviado
-                data["Total de atendimento novos atendimentos e reavalicões:"] = Number(totalInput.value);
+                dataToSave["Carimbo de data/hora"] = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                dataToSave["Total de atendimento novos atendimentos e reavalicões:"] = Number(totalInput.value);
 
                 statusMessage.style.display = 'block';
                 statusMessage.className = 'alert alert-info';
-                statusMessage.textContent = 'Enviando dados para o servidor...';
+                statusMessage.textContent = 'Enviando dados para o Firebase...';
 
                 try {
-                    // Endpoint no servidor ASP.NET para salvar os dados
-                    const response = await fetch('SaveData.aspx', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
+                    const docRef = await db.collection(PRODUTIVIDADE_COLLECTION).add(dataToSave);
 
-                    const result = await response.text();
-
-                    if (response.ok) {
-                        statusMessage.className = 'alert alert-success';
-                        statusMessage.textContent = 'Sucesso! Dados salvos permanentemente no DB.';
-                        form.reset();
-                        updateSum(); // Limpa o total após o reset
-                    } else {
-                        statusMessage.className = 'alert alert-danger';
-                        // Exibe a mensagem de erro detalhada do servidor
-                        statusMessage.textContent = `Erro ao salvar: ${result || 'Erro desconhecido.'}`; 
-                    }
+                    statusMessage.className = 'alert alert-success';
+                    statusMessage.textContent = `Sucesso! Registro salvo no DB com ID: ${docRef.id}`;
+                    form.reset();
+                    updateSum(); 
 
                 } catch (error) {
                     statusMessage.className = 'alert alert-danger';
-                    statusMessage.textContent = `Erro de conexão com o servidor: ${error.message}`;
+                    statusMessage.textContent = `Erro ao salvar no Firebase: ${error.message}. Verifique as permissões de Escrita (Rules).`; 
+
                 } finally {
                     btnSalvar.disabled = false;
                 }

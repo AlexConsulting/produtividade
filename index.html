@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Produtividade Clínica</title>
+    <title>Dashboard de Produtividade Clínica (Firebase)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script> 
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script> 
+
     <style>
         body { background-color: #f8f9fa; }
         .dashboard-header { background-color: #007bff; color: white; padding: 20px 0; margin-bottom: 30px; }
@@ -66,12 +69,15 @@
     <header class="dashboard-header">
         <div class="container">
             <h1 class="text-center">Painel de Indicadores de Produtividade Clínica</h1>
+            <p class="text-center">Dados carregados do Firebase Firestore</p>
         </div>
     </header>
 
     <main class="container">
+        
         <div id="loadingMessage" class="alert alert-info alert-loading" role="alert" style="display:none;">
-            Carregando dados do Banco de Dados SQLite...
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
+            Carregando dados do Firebase Firestore...
         </div>
         
         <div id="filterAlert" class="alert alert-warning text-center" role="alert" style="display:none;">
@@ -127,8 +133,8 @@
             </div>
             <div class="row g-3 mt-3">
                 <div class="col-md-12">
-                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: (produtividade.db)</label>
-                    <input class="form-control" type="text" id="dbFileName" value="produtividade.db" readonly style="color:#007bff;">
+                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS: Firebase Firestore</label>
+                    <input class="form-control" type="text" id="dbFileName" value="Coleção: produtividade" readonly style="color:#007bff;">
                 </div>
             </div>
 
@@ -241,6 +247,22 @@
     <footer class="text-center text-muted py-3">Dashboard de Produtividade</footer>
 
     <script>
+        // FIREBASE CONFIGURAÇÃO
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
+            authDomain: "produtividade-4d98e.firebaseapp.com",
+            projectId: "produtividade-4d98e",
+            storageBucket: "produtividade-4d98e.firebasestorage.app",
+            messagingSenderId: "642824868640",
+            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
+            measurementId: "G-489RSTNQVT"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
+        // FIM FIREBASE CONFIGURAÇÃO
+        
         let allData = [];
         let examesPorMedicoChartInstance;
         let medicacoesPorMedicoChartInstance;
@@ -261,6 +283,7 @@
         };
 
         // --- DEFINIÇÃO DAS CHAVES INTERNAS (CHAVES LIMPAS PARA USO NO JS) ---
+        // (IDÊNTICO AO SEU ORIGINAL)
         const K_DATA = 'data';
         const K_MEDICO = 'medico'; 
         const K_ATEND_TOTAL = 'atend_total'; 
@@ -281,20 +304,16 @@
         const K_MED_INAL = 'med_inal';
         const K_DIA_SEMANA = 'dia_semana';
         const K_TURNO = 'turno'; 
-        
-        // NOVAS CHAVES DE FILTRO
         const K_CLIENTE = 'cliente'; 
         const K_UNIDADE = 'unidade'; 
-        
-        // CHAVES PARA FICHA
         const K_FICHA_VERDE = 'ficha_verde';
         const K_FICHA_AMARELA = 'ficha_amarela';
         const K_FICHA_LARANJA = 'ficha_laranja';
         const K_FICHA_AZUL = 'ficha_azul';
         const K_FICHA_BRANCA = 'ficha_branca';
-
-
-        // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB ---
+        
+        // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (IGNORADO/MANTIDO APENAS POR REFERÊNCIA) ---
+        // (IDÊNTICO AO SEU ORIGINAL, MAS AGORA É MANUALMENTE MANTIDO PELA INITDASHBOARD)
         const COLUMN_MAP_KEYS = {
             [K_DATA]: 'Data do plantao',
             [K_MEDICO]: 'Nome do medico',
@@ -316,12 +335,8 @@
             [K_MED_INAL]: 'ILAcaO',
             [K_DIA_SEMANA]: 'Dia da sema',
             [K_TURNO]: 'Diurno ou noturno',
-
-            // NOVOS MAPEMANTOS DE CLIENTE/UNIDADE
-            [K_CLIENTE]: 'Cliente', // <--- ASSUME O NOME DA COLUNA NO DB
-            [K_UNIDADE]: 'Unidade', // <--- ASSUME O NOME DA COLUNA NO DB
-
-            // MAPEMANTOS DE FICHA
+            [K_CLIENTE]: 'Cliente', 
+            [K_UNIDADE]: 'Unidade', 
             [K_FICHA_VERDE]: 'Numero de fichas verdes', 
             [K_FICHA_AMARELA]: 'Numero de fichas amarelas', 
             [K_FICHA_LARANJA]: 'Numero de fichas laranja', 
@@ -330,10 +345,11 @@
         };
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
+        // (IDÊNTICO AO SEU ORIGINAL)
         const DISPLAY_COLUMNS = {
             [K_DATA]: 'Data',
-            [K_CLIENTE]: 'Cliente', // <--- NOVO
-            [K_UNIDADE]: 'Unidade', // <--- NOVO
+            [K_CLIENTE]: 'Cliente', 
+            [K_UNIDADE]: 'Unidade', 
             [K_MEDICO]: 'Médico',
             [K_TURNO]: 'Turno', 
             [K_ATEND_NOVO]: 'Novos Atend.',
@@ -361,7 +377,7 @@
         };
 
         const COLUMN_ORDER = [
-            K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA, // <--- NOVO
+            K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA, 
             K_ATEND_NOVO, K_REAVALIACOES, K_TOTAL_GERAL, K_ATEND_TOTAL, 
             K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA,
             K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG, 
@@ -370,142 +386,138 @@
         // -----------------------------------------------------------
 
 
-        // 2. FUNÇÃO PARA LER OS DADOS DO ARQUIVO SQLITE USANDO SQL.JS
-        async function loadDataFromSQLite() {
+        /**
+         * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
+         */
+        async function initDashboard() {
             document.getElementById('loadingMessage').style.display = 'block';
-            
-            const DB_FILE = 'produtividade.db'; 
-            
+
             try {
-                // Inicializa o SQL.js
-                const SQL = await initSqlJs({ 
-                    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` 
-                });
+                // 1. Consulta todos os documentos da coleção no Firestore
+                const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
                 
-                // Carrega o arquivo binário do .db
-                const response = await fetch(DB_FILE);
-                if (!response.ok) {
-                    throw new Error(`Não foi possível carregar o arquivo DB: ${DB_FILE}. Verifique se ele está no mesmo local que o HTML. Status: ${response.status}`);
-                }
-                const buffer = await response.arrayBuffer();
-                const db = new SQL.Database(new Uint8Array(buffer));
-                
-                const tableRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-                if (tableRes.length === 0) {
-                    throw new Error("Nenhuma tabela de dados encontrada no banco de dados.");
-                }
-                const tableName = tableRes[0].values[0][0]; 
-                
-                const res = db.exec(`SELECT * FROM "${tableName}"`);
-                
-                if (res.length === 0 || res[0].values.length === 0) {
-                    db.close();
-                    return [];
-                }
-
-                const columns = res[0].columns;
-                const values = res[0].values;
-                
-                // 3. MAPEAR NOMES DE COLUNAS REAIS PARA CHAVES INTERNAS (K_*)
-                const dbKeyToInternalKey = {}; 
-                const internalKeys = Object.keys(COLUMN_MAP_KEYS);
-
-                for (const dbColName of columns) {
-                    const cleanDbColName = dbColName.toLowerCase().replace(/[\s\t:()-]/g, '');
-
-                    for (const internalKey of internalKeys) {
-                        const simpleMatchString = COLUMN_MAP_KEYS[internalKey].toLowerCase().replace(/[\s\t:()-]/g, '');
+                // 2. Mapeia os documentos para o array allData
+                allData = snapshot.docs.map(doc => {
+                    let data = doc.data();
+                    
+                    // Mapeamento MANUAL dos campos do Firebase para as chaves internas (K_*)
+                    const newRow = {};
+                    
+                    // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined
+                    const safeGet = (fieldName, isNumber = false) => {
+                        let value = data[fieldName];
                         
-                        if (cleanDbColName.includes(simpleMatchString) && !dbKeyToInternalKey[internalKey]) {
-                            dbKeyToInternalKey[internalKey] = dbColName;
-                            break; 
+                        // Tratamento de Timestamp do Firebase
+                        if (value && value.toDate) {
+                             // Converte o Firebase Timestamp para data formatada (ISO)
+                             const dateObj = value.toDate();
+                             // Retorna a data no formato YYYY-MM-DD
+                             return dateObj.toISOString().substring(0, 10);
                         }
-                    }
-                }
-                
-                console.log('[DEBUG DB] Mapeamento interno final:', dbKeyToInternalKey);
-
-
-                // 4. PROCESSAMENTO DOS DADOS USANDO O MAPA
-                let processedData = values.map(rowValues => {
-                    let row = {};
-                    columns.forEach((col, index) => {
-                        row[col] = rowValues[index];
-                    });
-                    
-                    let newRow = {};
-                    
-                    const safeGet = (internalKey, isNumber = false) => {
-                        const dbColName = dbKeyToInternalKey[internalKey];
-                        const value = row[dbColName];
-                        return isNumber ? (Number(value) || 0) : (value || '');
+                        
+                        // Lógica de conversão para número
+                        if (isNumber) {
+                            // Converte a string para número (se for o caso)
+                            return (Number(value) || 0); 
+                        }
+                        // Retorna o valor como string, removendo espaços
+                        return (value || '').trim();
                     };
 
-                    newRow[K_DATA] = safeGet(K_DATA);
-                    newRow[K_MEDICO] = safeGet(K_MEDICO);
-                    newRow[K_ATEND_TOTAL] = safeGet(K_ATEND_TOTAL, true);
+                    // Mapeando TODAS as colunas do seu formulário (Firestore) para as chaves internas (K_*)
                     
-                    newRow[K_ATEND_NOVO] = safeGet(K_ATEND_NOVO, true); 
-                    newRow[K_REAVALIACOES] = safeGet(K_REAVALIACOES, true);
-                    newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
-                    
-                    // NOVOS CAMPOS DE FILTRO
-                    newRow[K_CLIENTE] = safeGet(K_CLIENTE); // <--- INCLUIDO
-                    newRow[K_UNIDADE] = safeGet(K_UNIDADE); // <--- INCLUIDO
+                    // CHAVES DE USO GERAL/FILTRO
+                    newRow[K_DATA] = safeGet("Data do plantao:");
+                    newRow[K_MEDICO] = safeGet("Nome do medico (nome completo,  maiusculo) :");
+                    newRow[K_CLIENTE] = safeGet("Cliente");
+                    newRow[K_UNIDADE] = safeGet("Unidade");
+                    newRow[K_TURNO] = safeGet("Diurno ou noturno:");
+                    newRow[K_DIA_SEMANA] = safeGet("Dia da sema:");
 
-                    newRow[K_ECHO] = safeGet(K_ECHO, true);
-                    newRow[K_ELETRO] = safeGet(K_ELETRO, true);
-                    newRow[K_LAB] = safeGet(K_LAB, true);
-                    newRow[K_RX] = safeGet(K_RX, true);
-                    newRow[K_TOMO] = safeGet(K_TOMO, true);
-                    newRow[K_USG] = safeGet(K_USG, true);
-                    
-                    newRow[K_MED_EV] = safeGet(K_MED_EV, true);
-                    newRow[K_MED_IM] = safeGet(K_MED_IM, true);
-                    newRow[K_MED_SUBCUT] = safeGet(K_MED_SUBCUT, true); 
-                    newRow[K_MED_VO] = safeGet(K_MED_VO, true); 
-                    newRow[K_MED_OFTAL] = safeGet(K_MED_OFTAL, true);
-                    newRow[K_MED_INAL] = safeGet(K_MED_INAL, true); 
-                    
-                    newRow[K_DIA_SEMANA] = safeGet(K_DIA_SEMANA);
-                    newRow[K_TURNO] = safeGet(K_TURNO); 
-                    
-                    newRow[K_FICHA_VERDE] = safeGet(K_FICHA_VERDE, true);
-                    newRow[K_FICHA_AMARELA] = safeGet(K_FICHA_AMARELA, true);
-                    newRow[K_FICHA_LARANJA] = safeGet(K_FICHA_LARANJA, true);
-                    newRow[K_FICHA_AZUL] = safeGet(K_FICHA_AZUL, true);
-                    newRow[K_FICHA_BRANCA] = safeGet(K_FICHA_BRANCA, true);
+                    // CHAVES DE PRODUTIVIDADE
+                    newRow[K_ATEND_NOVO] = safeGet("Numero de Novos atendimentos:", true); 
+                    newRow[K_REAVALIACOES] = safeGet("Numero Reavalicões", true);
+                    newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
+                    newRow[K_ATEND_TOTAL] = safeGet("Total de atendimento novos atendimentos e reavalicões:", true); 
+
+                    // CHAVES DE FICHAS DE RISCO
+                    newRow[K_FICHA_VERDE] = safeGet("Numero de fichas verdes", true);
+                    newRow[K_FICHA_AMARELA] = safeGet("Numero de fichas amarelas", true);
+                    newRow[K_FICHA_LARANJA] = safeGet("Numero de fichas laranja", true);
+                    newRow[K_FICHA_AZUL] = safeGet("Numero de fichas azul", true);
+                    newRow[K_FICHA_BRANCA] = safeGet("Numero de fichas brancas", true);
+
+                    // CHAVES DE EXAMES
+                    newRow[K_ECHO] = safeGet("Numero de ecocardiograma", true);
+                    newRow[K_ELETRO] = safeGet("Numero de eletrocardiograma", true);
+                    newRow[K_LAB] = safeGet("Numero de laboratoriais", true);
+                    newRow[K_RX] = safeGet("Numero de RX", true);
+                    newRow[K_TOMO] = safeGet("Tomografias", true);
+                    newRow[K_USG] = safeGet("USG", true);
+
+                    // CHAVES DE MEDICAÇÕES
+                    newRow[K_MED_EV] = safeGet("Medicacao prescritas EV", true);
+                    newRow[K_MED_IM] = safeGet("Medicacao prescritas IM", true);
+                    newRow[K_MED_SUBCUT] = safeGet("Medicacao Subcultanea", true); 
+                    newRow[K_MED_VO] = safeGet("Medicacao VO ou Subligual", true); 
+                    newRow[K_MED_OFTAL] = safeGet("Medicacao OFTALMICA", true);
+                    newRow[K_MED_INAL] = safeGet("ILAcaO", true); 
                     
                     return newRow;
                 })
+                // Filtra linhas sem nome do médico (registros incompletos)
                 .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== '');
-
-                document.getElementById('loadingMessage').style.display = 'none';
-                db.close();
-                return processedData;
-
-            } catch (error) {
-                document.getElementById('loadingMessage').style.display = 'none';
-                console.error('Erro ao carregar ou processar o SQLite:', error);
                 
-                let errorMessage = error.message;
-                if (errorMessage.includes('Not Found') || errorMessage.includes('404')) {
-                    errorMessage = `O arquivo "${DB_FILE}" não foi encontrado. Certifique-se de que ele está no mesmo local do arquivo HTML.`;
-                } else if (errorMessage.includes('Nenhuma tabela')) {
-                    errorMessage = `O DB foi encontrado, mas está vazio ou corrompido.`;
+                // 3. Verifica e Renderiza
+                if (allData.length > 0) {
+                    populateClienteFilter(allData); 
+                    populateUnidadeFilter(allData); 
+                    populateMedicoFilter(allData);
+                    populateTurnoFilter(allData); 
+                    updateDashboard();
+
+                    document.getElementById('applyFiltersBtn').onclick = updateDashboard;
+                    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+                    
+                    document.getElementById('applyFiltersBtn').disabled = false;
+                    document.getElementById('clearFiltersBtn').disabled = false;
+                    document.getElementById('filtroCliente').disabled = false; 
+                    document.getElementById('filtroUnidade').disabled = false; 
+                    document.getElementById('filtroData').disabled = false; 
+                    document.getElementById('filtroTurno').disabled = false; 
+
+                } else {
+                     // Caso não haja dados no Firebase
+                    document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado na coleção 'produtividade'.</span>`;
+                    
+                    document.getElementById('filtroCliente').disabled = true; 
+                    document.getElementById('filtroUnidade').disabled = true; 
+                    document.getElementById('filtroMedico').disabled = true;
+                    document.getElementById('filtroData').disabled = true;
+                    document.getElementById('filtroTurno').disabled = true;
+                    
+                    document.getElementById('applyFiltersBtn').disabled = true;
+                    document.getElementById('clearFiltersBtn').disabled = true;
+                    
+                    renderDetailedTable([]); 
                 }
+            } catch (error) {
+                console.error("Erro ao carregar dados do Firebase:", error);
                 
-                document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">${errorMessage}</span>`;
+                let errorMessage = "Verifique sua conexão e, CRITICAMENTE, as **Regras de Leitura** no Console do Firebase Firestore.";
+                document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão com o Firebase.</span>`;
+                document.getElementById('dbFileName').value = errorMessage;
                 document.getElementById('dbFileName').style.color = 'red';
                 document.getElementById('totalAtendimentos').textContent = "ERRO";
                 document.getElementById('totalAtendimentosMedico').textContent = "---";
-                
-                console.error(`ERRO CRÍTICO: Não foi possível ler o SQLite. Detalhes: ${errorMessage}`);
-                return [];
+            } finally {
+                document.getElementById('loadingMessage').style.display = 'none';
             }
         }
         
-        // NOVO: Popula o filtro de Cliente
+        // --- FUNÇÕES DE DASHBOARD (COMPLETAS, IDÊNTICAS AO SEU CÓDIGO) ---
+
+        // Funções de População de Filtros (Mantidas)
         function populateClienteFilter(data) { 
             const clientesValidos = data
                 .map(item => item[K_CLIENTE] ? String(item[K_CLIENTE]).trim().toUpperCase() : null)
@@ -522,7 +534,6 @@
             select.disabled = false;
         }
 
-        // NOVO: Popula o filtro de Unidade
         function populateUnidadeFilter(data) { 
             const unidadesValidas = data
                 .map(item => item[K_UNIDADE] ? String(item[K_UNIDADE]).trim().toUpperCase() : null)
@@ -580,6 +591,7 @@
             select.disabled = false;
         }
 
+        // Função de Filtragem de Dados (Mantida)
         function filterData(data) {
             
             const selectMedicoElement = document.getElementById('filtroMedico');
@@ -588,8 +600,8 @@
             
             const filtroData = document.getElementById('filtroData').value;
             const filtroTurno = document.getElementById('filtroTurno').value; 
-            const filtroCliente = document.getElementById('filtroCliente').value; // <--- NOVO
-            const filtroUnidade = document.getElementById('filtroUnidade').value; // <--- NOVO
+            const filtroCliente = document.getElementById('filtroCliente').value; 
+            const filtroUnidade = document.getElementById('filtroUnidade').value; 
             
             let filteredData = data.filter(row => {
                 const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
@@ -622,38 +634,14 @@
                 return filteredData;
             }
 
-            // Filtro Data (A PARTIR DE)
+            // Filtro Data (A PARTIR DE) - K_DATA já está no formato YYYY-MM-DD
             return filteredData.filter(row => {
-                
-                let rawDate = String(row[K_DATA] || '').trim().replace(/['"\u0000]/g, ''); 
-                let normalizedDate = null;
-                
-                if (!rawDate) {
-                    return false;
-                }
-
-                if (!isNaN(rawDate) && rawDate.length > 10) {
-                    const dateObj = new Date(parseInt(rawDate, 10));
-                    normalizedDate = dateObj.toISOString().substring(0, 10);
-                }
-                else if (rawDate.includes('/') && rawDate.length >= 8) {
-                    const parts = rawDate.substring(0, 10).split('/');
-                    if (parts.length === 3 && parts[2].length === 4) {
-                        normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                    }
-                } 
-                else if (rawDate.includes('-') && rawDate.length >= 10) {
-                    normalizedDate = rawDate.substring(0, 10);
-                }
-                
-                const isDataMatch = normalizedDate >= filtroData;
-                
-                return isDataMatch;
+                const rowDate = String(row[K_DATA] || '').substring(0, 10);
+                return rowDate >= filtroData;
             });
         }
         
-        // ... (generateKPIs, getProdutividadePorMedicoData, getExamesPorMedicoData, etc. - Sem alterações de lógica para estas funções)
-        
+        // Funções de Geração de KPIs (Mantidas)
         function getFichasData(data) {
             const fichaCols = [K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA];
             const labels = ['Verde', 'Amarela', 'Laranja', 'Azul', 'Branca'];
@@ -670,17 +658,13 @@
             };
         }
 
-
         function generateKPIs(data) {
-            // Se houver mais de um médico, o título do KPI muda
             const selectElement = document.getElementById('filtroMedico');
             const selectedMedicos = Array.from(selectElement.selectedOptions).map(option => option.value);
 
-            // KPI 1: Total Geral de Atendimentos (Mantém o original)
             const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
             document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
             
-            // KPI 2: Novos Atendimentos
             const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
             document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
             
@@ -695,15 +679,12 @@
                 tituloKPI.textContent = 'Novos Atendimentos';
             }
             
-            // KPI 3: Total de Reavaliações
             const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
             document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
             
-            // KPI 4: Atend. + Reavaliações. Usa K_TOTAL_GERAL, que agora está garantido de ser a soma correta.
             const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
             document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
             
-            // CÁLCULO: Novos Atendimentos por Turno
             const atendimentosPorTurno = data.reduce((acc, row) => {
                 const turno = String(row[K_TURNO] || '').trim().toUpperCase();
                 const novos = row[K_ATEND_NOVO] || 0;
@@ -719,14 +700,12 @@
                 return acc;
             }, { diurno: 0, intermediario: 0, noturno: 0 });
 
-            // Atualiza os cards de turno
             document.getElementById('kpiDiurno').textContent = atendimentosPorTurno.diurno.toLocaleString('pt-BR');
             document.getElementById('kpiIntermediario').textContent = atendimentosPorTurno.intermediario.toLocaleString('pt-BR');
             document.getElementById('kpiNoturno').textContent = atendimentosPorTurno.noturno.toLocaleString('pt-BR');
         }
 
-        // ... (Resto das funções get e createCharts - sem alterações de lógica)
-        
+        // Funções de Dados para Gráficos (Mantidas)
         function getProdutividadePorMedicoData(data) {
             const agrupado = data.reduce((acc, row) => { 
                 const medico = String(row[K_MEDICO]).trim();
@@ -809,7 +788,7 @@
             };
         }
 
-
+        // Função de Criação de Gráficos (Mantida)
         function createCharts(data) {
             if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
             if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
@@ -961,6 +940,7 @@
             }
         }
 
+        // Funções de Alerta e Limpeza (Mantidas)
         function toggleFilterAlert(show) {
             const alertDiv = document.getElementById('filterAlert');
             if (show) {
@@ -978,16 +958,15 @@
                 option.selected = false;
             });
             
-            document.getElementById('filtroCliente').value = 'todos'; // <--- LIMPAR CLIENTE
-            document.getElementById('filtroUnidade').value = 'todos'; // <--- LIMPAR UNIDADE
+            document.getElementById('filtroCliente').value = 'todos'; 
+            document.getElementById('filtroUnidade').value = 'todos'; 
             document.getElementById('filtroData').value = '';
             document.getElementById('filtroTurno').value = 'todos'; 
             
             updateDashboard();
-            
-            console.log("Filtros limpos. Dashboard atualizado.");
         }
 
+        // Função de Renderização da Tabela Detalhada (Mantida)
         function renderDetailedTable(data) {
             const container = document.getElementById('detailedTableContainer');
             
@@ -998,7 +977,6 @@
             
             let titleText = `Detalhes dos Registros`;
             
-            // Adiciona filtros selecionados ao título para clareza
             let filterDetails = [];
             if (filtroCliente !== 'todos') filterDetails.push(`Cliente: ${filtroCliente}`);
             if (filtroUnidade !== 'todos') filterDetails.push(`Unidade: ${filtroUnidade}`);
@@ -1036,12 +1014,13 @@
                     let value = row[key];
                     let alignment = 'text-start'; 
 
-                    const isNonNumericColumn = [K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA].includes(key); // <--- INCLUIDO
+                    const isNonNumericColumn = [K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA].includes(key); 
 
                     if (!isNaN(value) && value !== null && value !== '' && !isNonNumericColumn) {
                         value = Number(value).toLocaleString('pt-BR');
                         alignment = 'text-center'; 
                     } else if (key === K_DATA && value) {
+                        // Formata a data (assumindo YYYY-MM-DD do safeGet) para DD/MM/YYYY
                         const dateParts = String(value).substring(0, 10).split('-');
                         if (dateParts.length === 3) {
                             value = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
@@ -1061,44 +1040,7 @@
             container.innerHTML = tableHTML;
         }
 
-
-        // --- INICIALIZAÇÃO E EVENTOS ---
-
-        async function initDashboard() {
-            allData = await loadDataFromSQLite(); 
-
-            if (allData.length > 0) {
-                populateClienteFilter(allData); // <--- NOVO
-                populateUnidadeFilter(allData); // <--- NOVO
-                populateMedicoFilter(allData);
-                populateTurnoFilter(allData); 
-                updateDashboard();
-
-                document.getElementById('applyFiltersBtn').onclick = updateDashboard;
-                document.getElementById('clearFiltersBtn').onclick = clearFilters;
-                
-                document.getElementById('applyFiltersBtn').disabled = false;
-                document.getElementById('clearFiltersBtn').disabled = false;
-                document.getElementById('filtroCliente').disabled = false; // <--- HABILITA
-                document.getElementById('filtroUnidade').disabled = false; // <--- HABILITA
-                document.getElementById('filtroData').disabled = false; 
-                document.getElementById('filtroTurno').disabled = false; 
-
-            } else {
-                document.getElementById('filtroCliente').disabled = true; // <--- DESATIVA
-                document.getElementById('filtroUnidade').disabled = true; // <--- DESATIVA
-                document.getElementById('filtroMedico').disabled = true;
-                document.getElementById('filtroData').disabled = true;
-                document.getElementById('filtroTurno').disabled = true;
-                
-                document.getElementById('applyFiltersBtn').disabled = true;
-                document.getElementById('clearFiltersBtn').disabled = true;
-                
-                renderDetailedTable([]); 
-                console.log("Não há dados para exibir.");
-            }
-        }
-        
+        // Função de Atualização do Dashboard (Mantida)
         function updateDashboard() {
             const filteredData = filterData(allData);
 
