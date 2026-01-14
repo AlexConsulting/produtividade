@@ -242,250 +242,800 @@
     </main>
     <footer class="text-center text-muted py-3">Dashboard de Produtividade</footer>
 
-<script>
-        // CONFIGURAÇÃO FIREBASE
+    <script>
+       
+    <script>
+        // FIREBASE CONFIGURAÇÃO
         const firebaseConfig = {
             apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
             authDomain: "produtividade-4d98e.firebaseapp.com",
             projectId: "produtividade-4d98e",
             storageBucket: "produtividade-4d98e.firebasestorage.app",
             messagingSenderId: "642824868640",
-            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45"
+            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
+            measurementId: "G-489RSTNQVT"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
+        // FIM FIREBASE CONFIGURAÇÃO
+        
+        let allData = [];
+        let examesPorMedicoChartInstance;
+        let medicacoesPorMedicoChartInstance;
+        let produtividadePorMedicoChartInstance;
+        let atendimentosDiaSemanaChartInstance;
+        let medicacoesChartInstance;
+        let fichasClassificacaoChartInstance; 
 
-        // DEFINIÇÃO EXATA DOS CAMPOS DO BANCO DE DADOS
-        const K = {
-            CLIENTE: "Cliente",
-            DATA: "Data do plantão:  ",
-            DIA_SEMANA: "Dia da semana:",
-            TURNO: "Diurno ou noturno:",
-            MEDICO: "Nome do médico ",
-            UNIDADE: "Unidade",
-            ATEND_NOVO: "Número de Novos atendimentos:",
-            REAVALIACOES: "Número Reavalições",
-            // Fichas
-            F_BRANCA: "Número de fichas brancas",
-            F_AZUL: "Número de fichas azul",
-            F_VERDE: "Número de fichas verdes",
-            F_AMARELA: "Número de fichas amarelas",
-            F_LARANJA: "Número de fichas laranja",
-            // Exames
-            ECHO: "Número de ecocardiograma",
-            ELETRO: "Número de eletrocardiograma",
-            LAB: "Número de laboratoriais",
-            RX: "Número de RX",
-            TOMO: "Tomografias",
-            USG: "USG",
-            // Medicações
-            MED_EV: "Medicação prescritas EV",
-            MED_IM: "Medicação prescritas IM",
-            MED_SC: "Medicação Subcultanea",
-            MED_VO: "Medicação VO ou Subligual",
-            RETAL: "RETAL",
-            INALATORIA: "INALATORIA",
-            OFTALMICA: "OFTALMICA"
+        const colors = {
+            primario: 'rgba(0, 123, 255, 0.7)', // Azul
+            secundario: 'rgba(40, 167, 69, 0.7)', // Verde
+            amarelo: 'rgba(255, 193, 7, 0.7)', // Amarelo
+            vermelho: 'rgba(220, 53, 69, 0.7)', // Vermelho/Perigo
+            roxo: 'rgba(108, 99, 255, 0.7)', 
+            ciano: 'rgba(23, 162, 184, 0.7)',
+            cinza: 'rgba(108, 117, 125, 0.7)', // Cinza/Secundário
+            laranja: 'rgba(253, 126, 20, 0.7)' // Laranja
         };
 
-        let allData = [];
-        let chartInstances = {};
+        // --- DEFINIÇÃO DAS CHAVES INTERNAS (CHAVES LIMPAS PARA USO NO JS) ---
+        // (IDÊNTICO AO SEU ORIGINAL)
+        const K_DATA = 'data';
+        const K_MEDICO = 'medico'; 
+        const K_ATEND_TOTAL = 'atend_total'; 
+        const K_ATEND_NOVO = 'atend_novo'; 
+        const K_REAVALIACOES = 'reavaliacoes'; 
+        const K_TOTAL_GERAL = 'total_geral_completo'; 
+        const K_ECHO = 'echo';
+        const K_ELETRO = 'eletro';
+        const K_LAB = 'lab';
+        const K_RX = 'rx';
+        const K_TOMO = 'tomo';
+        const K_USG = 'usg';
+        const K_MED_EV = 'med_ev';
+        const K_MED_IM = 'med_im';
+        const K_MED_SUBCUT = 'med_subcut';
+        const K_MED_VO = 'med_vo';
+        const K_MED_OFTAL = 'med_oftal';
+        const K_MED_INAL = 'med_inal';
+        const K_DIA_SEMANA = 'dia_semana';
+        const K_TURNO = 'turno'; 
+        const K_CLIENTE = 'cliente'; 
+        const K_UNIDADE = 'unidade'; 
+        const K_FICHA_VERDE = 'ficha_verde';
+        const K_FICHA_AMARELA = 'ficha_amarela';
+        const K_FICHA_LARANJA = 'ficha_laranja';
+        const K_FICHA_AZUL = 'ficha_azul';
+        const K_FICHA_BRANCA = 'ficha_branca';
+        
+        // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (IGNORADO/MANTIDO APENAS POR REFERÊNCIA) ---
+        // (IDÊNTICO AO SEU ORIGINAL, MAS AGORA É MANUALMENTE MANTIDO PELA INITDASHBOARD)
+        const COLUMN_MAP_KEYS = {
+    [K_DATA]: "Data do plantão:  ",
+    [K_TURNO]: "Diurno ou noturno:",
+    [K_DIA_SEMANA]: "Dia da semana:",
+    [K_MEDICO]: "Nome do médico ",
+    [K_ATEND_NOVO]: "Número de Novos atendimentos:",
+    [K_REAVALIACOES]: "Número Reavalições",
+    [K_FICHA_BRANCA]: "Número de fichas brancas",
+    [K_FICHA_AZUL]: "Número de fichas azul",
+    [K_FICHA_VERDE]: "Número de fichas verdes",
+    [K_FICHA_AMARELA]: "Número de fichas amarelas",
+    [K_FICHA_LARANJA]: "Número de fichas laranja",
+    [K_LAB]: "Número de laboratoriais",
+    [K_RX]: "Número de RX",
+    [K_TOMO]: "Tomografias",
+    [K_USG]: "USG",
+    [K_MED_EV]: "Medicação prescritas EV",
+    [K_MED_IM]: "Medicação prescritas IM",
+    [K_MED_SUBCUT]: "Medicação Subcultanea",
+    [K_MED_VO]: "Medicação VO ou Subligual",
+    [K_MED_INAL]: "INALATORIA",
+    [K_MED_OFTAL]: "OFTALMICA"
+};
 
-        // INICIALIZAÇÃO
-        async function initDashboard() {
-            document.getElementById('loadingMessage').style.display = 'block';
-            try {
-                const snapshot = await db.collection('produtividade').get();
-                allData = snapshot.docs.map(doc => {
-                    const d = doc.data();
-                    const row = {};
-                    
-                    // Processamento de Strings e Números para todos os campos
-                    Object.keys(K).forEach(key => {
-                        const dbKey = K[key];
-                        if (["ATEND_NOVO", "REAVALIACOES", "F_BRANCA", "F_AZUL", "F_VERDE", "F_AMARELA", "F_LARANJA", "ECHO", "ELETRO", "LAB", "RX", "TOMO", "USG", "MED_EV", "MED_IM", "MED_SC", "MED_VO", "RETAL", "INALATORIA", "OFTALMICA"].includes(key)) {
-                            row[dbKey] = Number(d[dbKey]) || 0;
-                        } else {
-                            row[dbKey] = d[dbKey] ? String(d[dbKey]).trim() : "";
-                        }
-                    });
-                    return row;
-                }).filter(r => r[K.MEDICO] !== "");
+        // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
+        // (IDÊNTICO AO SEU ORIGINAL)
+        const DISPLAY_COLUMNS = {
+            [K_DATA]: 'Data',
+            [K_CLIENTE]: 'Cliente', 
+            [K_UNIDADE]: 'Unidade', 
+            [K_MEDICO]: 'Médico',
+            [K_TURNO]: 'Turno', 
+            [K_ATEND_NOVO]: 'Novos Atend.',
+            [K_REAVALIACOES]: 'Reavaliações',
+            [K_TOTAL_GERAL]: 'Total Geral (N+R)',
+            [K_ATEND_TOTAL]: 'Atend. Total (Orig.)',
+            [K_DIA_SEMANA]: 'Dia da Semana',
+            [K_ECHO]: 'Echo',
+            [K_ELETRO]: 'Eletro',
+            [K_LAB]: 'Lab',
+            [K_RX]: 'RX',
+            [K_TOMO]: 'Tomo',
+            [K_USG]: 'USG',
+            [K_MED_EV]: 'Med. EV',
+            [K_MED_IM]: 'Med. IM',
+            [K_MED_SUBCUT]: 'Med. Subcut',
+            [K_MED_VO]: 'Med. VO',
+            [K_MED_OFTAL]: 'Med. Oftál',
+            [K_MED_INAL]: 'Med. Inal',
+            [K_FICHA_VERDE]: 'Ficha V.',
+            [K_FICHA_AMARELA]: 'Ficha A.',
+            [K_FICHA_LARANJA]: 'Ficha L.',
+            [K_FICHA_AZUL]: 'Ficha Az.',
+            [K_FICHA_BRANCA]: 'Ficha B.'
+        };
 
-                populateFilters();
-                updateDashboard();
-                enableUI();
-            } catch (error) {
-                console.error("Erro:", error);
-                alert("Falha ao carregar dados do Firestore.");
-            } finally {
-                document.getElementById('loadingMessage').style.display = 'none';
+        const COLUMN_ORDER = [
+            K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA, 
+            K_ATEND_NOVO, K_REAVALIACOES, K_TOTAL_GERAL, K_ATEND_TOTAL, 
+            K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA,
+            K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG, 
+            K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL
+        ];
+        // -----------------------------------------------------------
+
+
+        /**
+         * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
+         */
+async function initDashboard() {
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) loadingMessage.style.display = 'block';
+
+    try {
+        console.log("Tentando acessar a coleção:", PRODUTIVIDADE_COLLECTION);
+        const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+        
+        if (snapshot.empty) {
+            console.error("ERRO: Coleção vazia ou nome incorreto.");
+            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Coleção '${PRODUTIVIDADE_COLLECTION}' não encontrada.</span>`;
+            return;
+        }
+
+        // Log para conferência no F12
+        const firstDoc = snapshot.docs[0].data();
+        console.log("Campos reais no Firebase:", Object.keys(firstDoc));
+
+        allData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const newRow = {};
+            
+            // Função de busca flexível para lidar com variações de nomes de colunas
+            const smartGet = (possibleNames, isNumber = false) => {
+                const names = Array.isArray(possibleNames) ? possibleNames : [possibleNames];
+                let value = undefined;
+
+                for (let name of names) {
+                    if (data[name] !== undefined) {
+                        value = data[name];
+                        break;
+                    }
+                }
+
+                if (isNumber) return (Number(value) || 0);
+                return (value !== undefined && value !== null) ? String(value).trim() : '';
+            };
+
+            // --- MAPEAMENTO DOS CAMPOS ---
+            
+            // 1. Data (Trata String DD/MM/AAAA ou Timestamp)
+            let rawDate = smartGet(["Data do plantão:  ", "Data do plantão:", "Data do plantao:", "Data"]);
+            if (rawDate && typeof rawDate.toDate === 'function') {
+                newRow[K_DATA] = rawDate.toDate().toISOString().substring(0, 10);
+            } else if (typeof rawDate === 'string' && rawDate.includes('/')) {
+                const p = rawDate.split('/');
+                newRow[K_DATA] = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+            } else {
+                newRow[K_DATA] = rawDate;
+            }
+
+            // 2. Identificação
+            newRow[K_MEDICO] = smartGet(["Nome do médico ", "Nome do médico", "Nome do medico", "Nome do medico "]);
+            newRow[K_TURNO] = smartGet(["Diurno ou noturno:", "Diurno ou noturno", "Turno", "TURNO"]);
+            newRow[K_DIA_SEMANA] = smartGet(["Dia da semana:", "Dia da semana", "DIA DA SEMANA"]);
+
+            // 3. Produtividade (Novos e Reavaliações)
+            newRow[K_ATEND_NOVO] = smartGet(["Número de Novos atendimentos:", "Numero de Novos atendimentos:", "Novos atendimentos"], true);
+            newRow[K_REAVALIACOES] = smartGet(["Número Reavalições", "Numero Reavalicões", "Reavaliacoes"], true);
+            
+            // 4. Fichas de Risco
+            newRow[K_FICHA_VERDE] = smartGet(["Número de fichas verdes", "Numero de fichas verdes"], true);
+            newRow[K_FICHA_AMARELA] = smartGet(["Número de fichas amarelas", "Numero de fichas amarelas"], true);
+            newRow[K_FICHA_LARANJA] = smartGet(["Número de fichas laranja", "Numero de fichas laranja"], true);
+            newRow[K_FICHA_AZUL] = smartGet(["Número de fichas azul", "Numero de fichas azul"], true);
+            newRow[K_FICHA_BRANCA] = smartGet(["Número de fichas brancas", "Numero de fichas brancas"], true);
+
+            // 5. Exames e Medicações
+            newRow[K_LAB] = smartGet(["Número de laboratoriais", "Numero de laboratoriais"], true);
+            newRow[K_RX] = smartGet(["Número de RX", "Numero de RX"], true);
+            newRow[K_TOMO] = smartGet(["Tomografias", "TOMO"], true);
+            newRow[K_USG] = smartGet(["USG"], true);
+            newRow[K_MED_EV] = smartGet(["Medicação prescritas EV", "Medicacao prescritas EV"], true);
+            newRow[K_MED_VO] = smartGet(["Medicação VO ou Subligual", "Medicacao VO ou Subligual"], true);
+            newRow[K_MED_INAL] = smartGet(["INALATORIA", "Inalatoria"], true);
+            
+            return newRow;
+        })
+        .filter(row => row[K_MEDICO] !== ''); // Filtra linhas vazias
+
+        console.log("Total processado com sucesso:", allData.length);
+
+        if (allData.length > 0) {
+            // Inicializa Filtros e Gráficos
+            populateMedicoFilter(allData);
+            populateTurnoFilter(allData); 
+            updateDashboard();
+
+            // Ativa os eventos dos botões
+            document.getElementById('applyFiltersBtn').onclick = updateDashboard;
+            document.getElementById('clearFiltersBtn').onclick = clearFilters;
+            
+            // Habilita os inputs
+            const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroData', 'filtroTurno', 'filtroMedico'];
+            controls.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.disabled = false;
+            });
+            
+            document.getElementById('data-source-label').innerHTML = `<span class="badge bg-success">Firebase: ${allData.length} registros</span>`;
+        } else {
+            document.getElementById('data-source-label').innerHTML = `<span style="color:orange;">Nenhum dado válido processado. Verifique os nomes das colunas.</span>`;
+        }
+
+    } catch (error) {
+        console.error("Erro Crítico:", error);
+        document.getElementById('data-source-label').innerHTML = `<span style="color:red;">Erro na conexão com Firebase.</span>`;
+    } finally {
+        if (loadingMessage) loadingMessage.style.display = 'none';
+    }
+}
+        // --- FUNÇÕES DE DASHBOARD (COMPLETAS, IDÊNTICAS AO SEU CÓDIGO) ---
+
+        // Funções de População de Filtros (Mantidas)
+        function populateClienteFilter(data) { 
+            const clientesValidos = data
+                .map(item => item[K_CLIENTE] ? String(item[K_CLIENTE]).trim().toUpperCase() : null)
+                .filter(cliente => cliente && cliente !== ''); 
+            const clientes = [...new Set(clientesValidos)].sort();
+            const select = document.getElementById('filtroCliente');
+            select.innerHTML = '<option value="todos">Todos os Clientes</option>'; 
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente;
+                option.textContent = cliente;
+                select.appendChild(option);
+            });
+            select.disabled = false;
+        }
+
+        function populateUnidadeFilter(data) { 
+            const unidadesValidas = data
+                .map(item => item[K_UNIDADE] ? String(item[K_UNIDADE]).trim().toUpperCase() : null)
+                .filter(unidade => unidade && unidade !== ''); 
+            const unidades = [...new Set(unidadesValidas)].sort();
+            const select = document.getElementById('filtroUnidade');
+            select.innerHTML = '<option value="todos">Todas as Unidades</option>'; 
+            unidades.forEach(unidade => {
+                const option = document.createElement('option');
+                option.value = unidade;
+                option.textContent = unidade;
+                select.appendChild(option);
+            });
+            select.disabled = false;
+        }
+
+        function populateMedicoFilter(data) {
+            
+            const nomesValidos = data
+                .map(item => item[K_MEDICO] ? String(item[K_MEDICO]).trim().toUpperCase() : null)
+                .filter(nome => nome && nome !== ''); 
+
+            const medicos = [...new Set(nomesValidos)].sort();
+
+            const select = document.getElementById('filtroMedico');
+            select.innerHTML = ''; 
+            
+            medicos.forEach(medico => {
+                const option = document.createElement('option');
+                option.value = medico;
+                option.textContent = medico;
+                select.appendChild(option);
+            });
+            
+            select.disabled = false;
+        }
+
+        function populateTurnoFilter(data) {
+            const turnosValidos = data
+                .map(item => item[K_TURNO] ? String(item[K_TURNO]).trim().toUpperCase() : null)
+                .filter(turno => turno && turno !== ''); 
+
+            const turnos = [...new Set(turnosValidos)].sort();
+
+            const select = document.getElementById('filtroTurno');
+            select.innerHTML = '<option value="todos">Todos os Turnos</option>'; 
+            
+            turnos.forEach(turno => {
+                const option = document.createElement('option');
+                option.value = turno;
+                option.textContent = turno;
+                select.appendChild(option);
+            });
+            
+            select.disabled = false;
+        }
+
+        // Função de Filtragem de Dados (Mantida)
+        function filterData(data) {
+            
+            const selectMedicoElement = document.getElementById('filtroMedico');
+            const selectedMedicos = Array.from(selectMedicoElement.selectedOptions)
+                                        .map(option => option.value.toUpperCase());
+            
+            const filtroData = document.getElementById('filtroData').value;
+            const filtroTurno = document.getElementById('filtroTurno').value; 
+            const filtroCliente = document.getElementById('filtroCliente').value; 
+            const filtroUnidade = document.getElementById('filtroUnidade').value; 
+            
+            let filteredData = data.filter(row => {
+                const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
+                
+                if (selectedMedicos.length === 0) {
+                    return true;
+                }
+                return selectedMedicos.includes(medicoNome);
+            });
+
+            // Filtro Cliente
+            filteredData = filteredData.filter(row => {
+                const clienteNome = row[K_CLIENTE] ? String(row[K_CLIENTE]).trim().toUpperCase() : '';
+                return filtroCliente === 'todos' || clienteNome === filtroCliente.toUpperCase();
+            });
+            
+            // Filtro Unidade
+            filteredData = filteredData.filter(row => {
+                const unidadeNome = row[K_UNIDADE] ? String(row[K_UNIDADE]).trim().toUpperCase() : '';
+                return filtroUnidade === 'todos' || unidadeNome === filtroUnidade.toUpperCase();
+            });
+
+            // Filtro Turno
+            filteredData = filteredData.filter(row => {
+                const turnoNome = row[K_TURNO] ? String(row[K_TURNO]).trim().toUpperCase() : '';
+                return filtroTurno === 'todos' || turnoNome === filtroTurno.toUpperCase();
+            });
+
+            if (!filtroData) {
+                return filteredData;
+            }
+
+            // Filtro Data (A PARTIR DE) - K_DATA já está no formato YYYY-MM-DD
+            return filteredData.filter(row => {
+                const rowDate = String(row[K_DATA] || '').substring(0, 10);
+                return rowDate >= filtroData;
+            });
+        }
+        
+        // Funções de Geração de KPIs (Mantidas)
+        function getFichasData(data) {
+            const fichaCols = [K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA];
+            const labels = ['Verde', 'Amarela', 'Laranja', 'Azul', 'Branca'];
+            const dataValues = fichaCols.map(col => 
+                data.reduce((sum, row) => sum + (row[col] || 0), 0)
+            );
+            
+            const combined = labels.map((label, index) => ({ label, data: dataValues[index] }))
+                                   .sort((a, b) => b.data - a.data);
+                                   
+            return { 
+                labels: combined.map(item => item.label), 
+                data: combined.map(item => item.data) 
+            };
+        }
+
+        function generateKPIs(data) {
+            const selectElement = document.getElementById('filtroMedico');
+            const selectedMedicos = Array.from(selectElement.selectedOptions).map(option => option.value);
+
+            const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
+            document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
+            
+            const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
+            document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
+            
+            const tituloKPI = document.querySelector('#kpi-atendimento-medico h5');
+            
+            if (selectedMedicos.length === 1) {
+                const primeiroNome = selectedMedicos[0].split(' ')[0];
+                tituloKPI.textContent = `Novos Atend. de ${primeiroNome}`;
+            } else if (selectedMedicos.length > 1) {
+                 tituloKPI.textContent = `Novos Atend. (Grupo Selecionado)`;
+            } else {
+                tituloKPI.textContent = 'Novos Atendimentos';
+            }
+            
+            const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
+            document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
+            
+            const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
+            document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
+            
+            const atendimentosPorTurno = data.reduce((acc, row) => {
+                const turno = String(row[K_TURNO] || '').trim().toUpperCase();
+                const novos = row[K_ATEND_NOVO] || 0;
+                
+                if (turno === 'DIURNO') {
+                    acc.diurno += novos;
+                } else if (turno === 'INTERMEDIARIO') {
+                    acc.intermediario += novos;
+                } else if (turno === 'NOTURNO') {
+                    acc.noturno += novos;
+                }
+                
+                return acc;
+            }, { diurno: 0, intermediario: 0, noturno: 0 });
+
+            document.getElementById('kpiDiurno').textContent = atendimentosPorTurno.diurno.toLocaleString('pt-BR');
+            document.getElementById('kpiIntermediario').textContent = atendimentosPorTurno.intermediario.toLocaleString('pt-BR');
+            document.getElementById('kpiNoturno').textContent = atendimentosPorTurno.noturno.toLocaleString('pt-BR');
+        }
+
+        // Funções de Dados para Gráficos (Mantidas)
+        function getProdutividadePorMedicoData(data) {
+            const agrupado = data.reduce((acc, row) => { 
+                const medico = String(row[K_MEDICO]).trim();
+                acc[medico] = (acc[medico] || 0) + (row[K_ATEND_TOTAL] || 0); 
+                return acc;
+            }, {});
+            const sortedEntries = Object.entries(agrupado).sort(([, a], [, b]) => b - a);
+            return {
+                labels: sortedEntries.map(([medico]) => medico),
+                data: sortedEntries.map(([, total]) => total)
+            };
+        }
+
+        function getExamesPorMedicoData(data) {
+            const exameCols = [K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG];
+            const labels = ['Ecocardiograma', 'Eletrocardiograma', 'Laboratoriais', 'RX', 'Tomografias', 'USG'];
+            const medicos = [...new Set(data.map(item => String(item[K_MEDICO]).trim()))].sort();
+            
+            const datasets = labels.map((label, index) => {
+                const colName = exameCols[index];
+                const backgroundColors = [colors.primario, colors.secundario, colors.amarelo, colors.vermelho, colors.roxo, colors.ciano];
+                
+                const dataValues = medicos.map(medico => 
+                    data.filter(row => String(row[K_MEDICO]).trim() === medico)
+                        .reduce((sum, row) => sum + (row[colName] || 0), 0)
+                );
+                
+                return {
+                    label: label,
+                    data: dataValues,
+                    backgroundColor: backgroundColors[index % backgroundColors.length],
+                };
+            });
+            return {
+                labels: medicos,
+                datasets: datasets
+            };
+        }
+
+        function getMedicacoesPorMedicoData(data) {
+            const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
+            const agrupado = data.reduce((acc, row) => {
+                const medico = String(row[K_MEDICO]).trim();
+                const totalMeds = medCols.reduce((sum, col) => sum + (row[col] || 0), 0);
+                acc[medico] = (acc[medico] || 0) + totalMeds;
+                return acc;
+            }, {});
+            const sortedEntries = Object.entries(agrupado).sort(([, a], [, b]) => b - a);
+            return {
+                labels: sortedEntries.map(([medico]) => medico),
+                data: sortedEntries.map(([, total]) => total)
+            };
+        }
+        
+        function getAtendimentosDiaSemanaData(data) {
+            const ordemDias = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
+            const agrupado = data.reduce((acc, row) => {
+                const dia = row[K_DIA_SEMANA] ? String(row[K_DIA_SEMANA]).toUpperCase().trim() : 'N/A';
+                acc[dia] = (acc[dia] || 0) + (row[K_ATEND_TOTAL] || 0);
+                return acc;
+            }, {});
+            const labels = ordemDias.filter(dia => agrupado[dia] !== undefined);
+            const dataValues = labels.map(dia => agrupado[dia] || 0);
+            return { labels, data: dataValues };
+        }
+
+        function getMedicacoesData(data) {
+            const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
+            const labels = ['EV', 'IM', 'Subcutânea', 'VO/Sublingual', 'Oftálmica', 'Inalação'];
+            const dataValues = medCols.map(col => 
+                data.reduce((sum, row) => sum + (row[col] || 0), 0)
+            );
+            
+            const combined = labels.map((label, index) => ({ label, data: dataValues[index] }))
+                                   .sort((a, b) => b.data - a.data);
+                                   
+            return { 
+                labels: combined.map(item => item.label), 
+                data: combined.map(item => item.data) 
+            };
+        }
+
+        // Função de Criação de Gráficos (Mantida)
+        function createCharts(data) {
+            if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
+            if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
+            if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
+            if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
+            if (medicacoesChartInstance) medicacoesChartInstance.destroy();
+            if (fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy(); 
+
+            // 1. Produtividade por Médico
+            const produtividade = getProdutividadePorMedicoData(data);
+            if (produtividade.data.length > 0) {
+                produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: produtividade.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: produtividade.data,
+                            backgroundColor: colors.primario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // 2. Atendimentos por Dia da Semana
+            const atendimentosDiaSemana = getAtendimentosDiaSemanaData(data);
+            if (atendimentosDiaSemana.data.length > 0) {
+                atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: atendimentosDiaSemana.labels,
+                        datasets: [{
+                            label: 'Total de Atendimentos',
+                            data: atendimentosDiaSemana.data,
+                            backgroundColor: colors.secundario,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // 3. Exames Solicitados por Médico (Gráfico Empilhado)
+            const examesData = getExamesPorMedicoData(data);
+            if (examesData.labels.length > 0) {
+                examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
+                    type: 'bar',
+                    data: examesData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, beginAtZero: true },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+            
+            // 4. Medicações Prescritas por Médico (Total)
+            const medicacoesPorMedico = getMedicacoesPorMedicoData(data);
+            if (medicacoesPorMedico.data.length > 0) {
+                 medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: medicacoesPorMedico.labels,
+                        datasets: [{
+                            label: 'Total de Medicações Prescritas',
+                            data: medicacoesPorMedico.data,
+                            backgroundColor: colors.vermelho,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // 5. GRÁFICO: Fichas de Classificação de Risco
+            const fichasData = getFichasData(data);
+            if (fichasData.data.length > 0) {
+                const colorsMap = {
+                    'Verde': colors.secundario, 
+                    'Amarela': colors.amarelo, 
+                    'Laranja': colors.laranja, 
+                    'Azul': colors.primario, 
+                    'Branca': colors.cinza
+                };
+                
+                const backgroundColors = fichasData.labels.map(label => colorsMap[label] || colors.cinza);
+
+                fichasClassificacaoChartInstance = new Chart(document.getElementById('fichasClassificacaoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: fichasData.labels,
+                        datasets: [{
+                            label: 'Total de Fichas',
+                            data: fichasData.data,
+                            backgroundColor: backgroundColors,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // 6. Medicações Prescritas (Total Geral)
+            const medicacoes = getMedicacoesData(data);
+            if (medicacoes.data.length > 0) {
+                medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: medicacoes.labels,
+                        datasets: [{
+                            label: 'Total de Prescrições',
+                            data: medicacoes.data,
+                            backgroundColor: colors.amarelo,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        scales: { x: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
             }
         }
 
-        function populateFilters() {
-            const getUnicos = (campo) => [...new Set(allData.map(d => d[campo]))].sort();
-            
-            const fillSelect = (id, lista, textoTodos) => {
-                const sel = document.getElementById(id);
-                sel.innerHTML = id === 'filtroMedico' ? '' : `<option value="todos">${textoTodos}</option>`;
-                lista.forEach(val => { if(val) sel.add(new Option(val, val)); });
-            };
-
-            fillSelect('filtroCliente', getUnicos(K.CLIENTE), "Todos os Clientes");
-            fillSelect('filtroUnidade', getUnicos(K.UNIDADE), "Todas as Unidades");
-            fillSelect('filtroMedico', getUnicos(K.MEDICO), "");
-            fillSelect('filtroTurno', getUnicos(K.TURNO), "Todos os Turnos");
+        // Funções de Alerta e Limpeza (Mantidas)
+        function toggleFilterAlert(show) {
+            const alertDiv = document.getElementById('filterAlert');
+            if (show) {
+                alertDiv.style.display = 'block';
+                setTimeout(() => {
+                    alertDiv.style.display = 'none';
+                }, 8000); 
+            } else {
+                alertDiv.style.display = 'none';
+            }
         }
-
-        function filterData() {
-            const fCliente = document.getElementById('filtroCliente').value;
-            const fUnidade = document.getElementById('filtroUnidade').value;
-            const fTurno = document.getElementById('filtroTurno').value;
-            const fData = document.getElementById('filtroData').value;
-            const fMedicos = Array.from(document.getElementById('filtroMedico').selectedOptions).map(o => o.value);
-
-            return allData.filter(d => {
-                const mCliente = fCliente === 'todos' || d[K.CLIENTE] === fCliente;
-                const mUnidade = fUnidade === 'todos' || d[K.UNIDADE] === fUnidade;
-                const mTurno = fTurno === 'todos' || d[K.TURNO] === fTurno;
-                const mData = !fData || d[K.DATA] >= fData;
-                const mMedico = fMedicos.length === 0 || fMedicos.includes(d[K.MEDICO]);
-                return mCliente && mUnidade && mTurno && mData && mMedico;
-            });
-        }
-
-        function updateDashboard() {
-            const data = filterData();
-            
-            // 1. KPIs
-            const novos = data.reduce((s, r) => s + r[K.ATEND_NOVO], 0);
-            const reaval = data.reduce((s, r) => s + r[K.REAVALIACOES], 0);
-            document.getElementById('totalAtendimentosMedico').innerText = novos.toLocaleString();
-            document.getElementById('totalEV').innerText = reaval.toLocaleString();
-            document.getElementById('totalAtendimentos').innerText = (novos + reaval).toLocaleString();
-
-            // KPIs por Turno
-            const calcTurno = (t) => data.filter(d => d[K.TURNO].toUpperCase().includes(t)).reduce((s, r) => s + r[K.ATEND_NOVO], 0);
-            document.getElementById('kpiDiurno').innerText = calcTurno("DIURNO");
-            document.getElementById('kpiIntermediario').innerText = calcTurno("INTERMEDIARIO");
-            document.getElementById('kpiNoturno').innerText = calcTurno("NOTURNO");
-
-            // 2. Gráficos
-            renderAllCharts(data);
-
-            // 3. Tabela
-            renderTable(data);
-
-            document.getElementById('filterAlert').style.display = data.length === 0 ? 'block' : 'none';
-        }
-
-        function renderAllCharts(data) {
-            const clearChart = (id) => { if(chartInstances[id]) chartInstances[id].destroy(); };
-
-            // Produtividade por Médico
-            clearChart('prod');
-            const medAgrup = {};
-            data.forEach(d => { medAgrup[d[K.MEDICO]] = (medAgrup[d[K.MEDICO]] || 0) + d[K.ATEND_NOVO] + d[K.REAVALIACOES]; });
-            chartInstances['prod'] = new Chart(document.getElementById('produtividadePorMedicoChart'), {
-                type: 'bar',
-                data: { labels: Object.keys(medAgrup), datasets: [{ label: 'Total', data: Object.values(medAgrup), backgroundColor: '#007bff' }] }
-            });
-
-            // Dia da Semana
-            clearChart('dias');
-            const diasAgrup = {};
-            data.forEach(d => { diasAgrup[d[K.DIA_SEMANA]] = (diasAgrup[d[K.DIA_SEMANA]] || 0) + d[K.ATEND_NOVO]; });
-            chartInstances['dias'] = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
-                type: 'line',
-                data: { labels: Object.keys(diasAgrup), datasets: [{ label: 'Novos Atendimentos', data: Object.values(diasAgrup), borderColor: '#198754' }] }
-            });
-
-            // Fichas de Classificação
-            clearChart('fichas');
-            const fichas = {
-                Verde: data.reduce((s, r) => s + r[K.F_VERDE], 0),
-                Amarela: data.reduce((s, r) => s + r[K.F_AMARELA], 0),
-                Laranja: data.reduce((s, r) => s + r[K.F_LARANJA], 0),
-                Azul: data.reduce((s, r) => s + r[K.F_AZUL], 0),
-                Branca: data.reduce((s, r) => s + r[K.F_BRANCA], 0)
-            };
-            chartInstances['fichas'] = new Chart(document.getElementById('fichasClassificacaoChart'), {
-                type: 'pie',
-                data: { labels: Object.keys(fichas), datasets: [{ data: Object.values(fichas), backgroundColor: ['green', 'yellow', 'orange', 'blue', 'gray'] }] }
-            });
-
-            // Exames por Médico
-            clearChart('examesMed');
-            const exMedMap = {};
-            data.forEach(d => {
-                const totalEx = d[K.RX] + d[K.ECHO] + d[K.ELETRO] + d[K.LAB] + d[K.TOMO] + d[K.USG];
-                exMedMap[d[K.MEDICO]] = (exMedMap[d[K.MEDICO]] || 0) + totalEx;
-            });
-            chartInstances['examesMed'] = new Chart(document.getElementById('examesPorMedicoChart'), {
-                type: 'bar',
-                data: { labels: Object.keys(exMedMap), datasets: [{ label: 'Exames Solicitados', data: Object.values(exMedMap), backgroundColor: '#6f42c1' }] }
-            });
-
-            // Medicações (Total Geral)
-            clearChart('medsTotal');
-            const meds = {
-                EV: data.reduce((s, r) => s + r[K.MED_EV], 0),
-                IM: data.reduce((s, r) => s + r[K.MED_IM], 0),
-                SC: data.reduce((s, r) => s + r[K.MED_SC], 0),
-                VO: data.reduce((s, r) => s + r[K.MED_VO], 0),
-                Outros: data.reduce((s, r) => s + r[K.RETAL] + r[K.INALATORIA] + r[K.OFTALMICA], 0)
-            };
-            chartInstances['medsTotal'] = new Chart(document.getElementById('medicacoesChart'), {
-                type: 'doughnut',
-                data: { labels: Object.keys(meds), datasets: [{ data: Object.values(meds), backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#20c997', '#6c757d'] }] }
+        
+        function clearFilters() {
+            Array.from(document.getElementById('filtroMedico').options).forEach(option => {
+                option.selected = false;
             });
             
-            // Medicações por Médico
-            clearChart('medsMed');
-            const medMedMap = {};
-            data.forEach(d => {
-                const totalMed = d[K.MED_EV] + d[K.MED_IM] + d[K.MED_SC] + d[K.MED_VO] + d[K.RETAL] + d[K.INALATORIA] + d[K.OFTALMICA];
-                medMedMap[d[K.MEDICO]] = (medMedMap[d[K.MEDICO]] || 0) + totalMed;
-            });
-            chartInstances['medsMed'] = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
-                type: 'bar',
-                data: { labels: Object.keys(medMedMap), datasets: [{ label: 'Prescrições', data: Object.values(medMedMap), backgroundColor: '#fd7e14' }] }
-            });
-        }
-
-        function renderTable(data) {
-            const container = document.getElementById('detailedTableContainer');
-            if(!data.length) { container.innerHTML = '<p class="text-center p-4">Sem dados para os filtros selecionados.</p>'; return; }
-            
-            let html = '<table class="table table-hover table-sm"><thead><tr><th>Data</th><th>Médico</th><th>Turno</th><th>Novos</th><th>Reaval.</th><th>Exames</th><th>Meds</th></tr></thead><tbody>';
-            data.forEach(r => {
-                const totalEx = r[K.RX] + r[K.ECHO] + r[K.ELETRO] + r[K.LAB] + r[K.TOMO] + r[K.USG];
-                const totalMed = r[K.MED_EV] + r[K.MED_IM] + r[K.MED_SC] + r[K.MED_VO];
-                html += `<tr><td>${r[K.DATA]}</td><td>${r[K.MEDICO]}</td><td>${r[K.TURNO]}</td><td>${r[K.ATEND_NOVO]}</td><td>${r[K.REAVALIACOES]}</td><td>${totalEx}</td><td>${totalMed}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-
-        function enableUI() {
-            ['filtroCliente', 'filtroUnidade', 'filtroMedico', 'filtroTurno', 'filtroData', 'applyFiltersBtn', 'clearFiltersBtn'].forEach(id => {
-                document.getElementById(id).disabled = false;
-            });
-        }
-
-        document.getElementById('applyFiltersBtn').onclick = updateDashboard;
-        document.getElementById('clearFiltersBtn').onclick = () => {
-            document.getElementById('filtroCliente').value = 'todos';
-            document.getElementById('filtroUnidade').value = 'todos';
-            document.getElementById('filtroTurno').value = 'todos';
+            document.getElementById('filtroCliente').value = 'todos'; 
+            document.getElementById('filtroUnidade').value = 'todos'; 
             document.getElementById('filtroData').value = '';
-            document.getElementById('filtroMedico').selectedIndex = -1;
+            document.getElementById('filtroTurno').value = 'todos'; 
+            
             updateDashboard();
-        };
+        }
 
-        window.onload = initDashboard;
+        // Função de Renderização da Tabela Detalhada (Mantida)
+        function renderDetailedTable(data) {
+            const container = document.getElementById('detailedTableContainer');
+            
+            const selectedMedicos = Array.from(document.getElementById('filtroMedico').selectedOptions).map(option => option.value);
+            const filtroTurno = document.getElementById('filtroTurno').value;
+            const filtroCliente = document.getElementById('filtroCliente').value;
+            const filtroUnidade = document.getElementById('filtroUnidade').value;
+            
+            let titleText = `Detalhes dos Registros`;
+            
+            let filterDetails = [];
+            if (filtroCliente !== 'todos') filterDetails.push(`Cliente: ${filtroCliente}`);
+            if (filtroUnidade !== 'todos') filterDetails.push(`Unidade: ${filtroUnidade}`);
+            if (selectedMedicos.length > 0) {
+                filterDetails.push(selectedMedicos.length === 1 ? `Médico: ${selectedMedicos[0]}` : `${selectedMedicos.length} Médicos`);
+            }
+            if (filtroTurno !== 'todos') filterDetails.push(`Turno: ${filtroTurno}`);
+            
+            if (filterDetails.length > 0) {
+                titleText += ` (${filterDetails.join(', ')})`;
+            }
+
+            document.getElementById('detailed-data-title').textContent = titleText;
+
+
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted p-4 mb-0">Nenhum registro encontrado com os filtros aplicados.</p>';
+                return;
+            }
+
+            let tableHTML = `<table class="table table-striped table-hover table-sm">`;
+            
+            // 1. Cabeçalho (Header)
+            tableHTML += `<thead><tr>`;
+            COLUMN_ORDER.forEach(key => {
+                tableHTML += `<th scope="col" title="${DISPLAY_COLUMNS[key]}">${DISPLAY_COLUMNS[key].replace(/\s\(.*\)/, '')}</th>`;
+            });
+            tableHTML += `</tr></thead>`;
+
+            // 2. Corpo da Tabela (Body)
+            tableHTML += `<tbody>`;
+            data.forEach(row => {
+                tableHTML += `<tr>`;
+                COLUMN_ORDER.forEach(key => {
+                    let value = row[key];
+                    let alignment = 'text-start'; 
+
+                    const isNonNumericColumn = [K_DATA, K_CLIENTE, K_UNIDADE, K_MEDICO, K_TURNO, K_DIA_SEMANA].includes(key); 
+
+                    if (!isNaN(value) && value !== null && value !== '' && !isNonNumericColumn) {
+                        value = Number(value).toLocaleString('pt-BR');
+                        alignment = 'text-center'; 
+                    } else if (key === K_DATA && value) {
+                        // Formata a data (assumindo YYYY-MM-DD do safeGet) para DD/MM/YYYY
+                        const dateParts = String(value).substring(0, 10).split('-');
+                        if (dateParts.length === 3) {
+                            value = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                        }
+                    } else if (isNonNumericColumn) {
+                        alignment = 'text-start'; 
+                    }
+                    
+                    tableHTML += `<td class="${alignment}">${value || '-'}</td>`;
+                });
+                tableHTML += `</tr>`;
+            });
+            tableHTML += `</tbody>`;
+            
+            tableHTML += `</table>`;
+            
+            container.innerHTML = tableHTML;
+        }
+
+        // Função de Atualização do Dashboard (Mantida)
+        function updateDashboard() {
+            const filteredData = filterData(allData);
+
+            if (filteredData.length === 0) {
+                toggleFilterAlert(true);
+                generateKPIs([]); 
+                createCharts([]);
+                renderDetailedTable([]); 
+            } else {
+                toggleFilterAlert(false);
+                generateKPIs(filteredData);
+                createCharts(filteredData);
+                renderDetailedTable(filteredData); 
+            }
+        }
+
+        initDashboard();
+
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
