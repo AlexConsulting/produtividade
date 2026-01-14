@@ -396,131 +396,124 @@
         /**
          * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
          */
-        async function initDashboard() {
-            document.getElementById('loadingMessage').style.display = 'block';
+    async function initDashboard() {
+    document.getElementById('loadingMessage').style.display = 'block';
 
-            try {
-                // 1. Consulta todos os documentos da coleção no Firestore
-                const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+    try {
+        // 1. Consulta todos os documentos da coleção no Firestore
+        const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+        
+        // 2. Mapeia os documentos para o array allData
+        allData = snapshot.docs.map(doc => {
+            let data = doc.data();
+            const newRow = {};
+            
+            // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined e FORMATANDO DATA
+            const safeGet = (fieldName, isNumber = false) => {
+                let value = data[fieldName];
                 
-                // 2. Mapeia os documentos para o array allData
-                allData = snapshot.docs.map(doc => {
-                    let data = doc.data();
-                    
-                    // Mapeamento MANUAL dos campos do Firebase para as chaves internas (K_*)
-                    const newRow = {};
-                    
-                    // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined
-                    const safeGet = (fieldName, isNumber = false) => {
-                        let value = data[fieldName];
-                        
-                        // Tratamento de Timestamp do Firebase
-                        if (value && value.toDate) {
-                             // Converte o Firebase Timestamp para data formatada (ISO)
-                             const dateObj = value.toDate();
-                             // Retorna a data no formato YYYY-MM-DD
-                             return dateObj.toISOString().substring(0, 10);
+                // --- TRATAMENTO ESPECIAL DE DATA ---
+                // Se for "Data do plantao:", tentamos converter para AAAA-MM-DD
+                if (fieldName === "Data do plantao:") {
+                    // Caso 1: Se for um objeto Timestamp do Firebase
+                    if (value && typeof value.toDate === 'function') {
+                        return value.toDate().toISOString().substring(0, 10);
+                    }
+                    // Caso 2: Se for uma string no formato brasileiro "DD/MM/AAAA"
+                    if (typeof value === 'string' && value.includes('/')) {
+                        const partes = value.split('/');
+                        if (partes.length === 3) {
+                            // Inverte para AAAA-MM-DD
+                            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
                         }
-                        
-                        // Lógica de conversão para número
-                        if (isNumber) {
-                            // Converte a string para número (se for o caso)
-                            return (Number(value) || 0); 
-                        }
-                        // Retorna o valor como string, removendo espaços
-                        return (value || '').trim();
-                    };
-
-                    // Mapeando TODAS as colunas do seu formulário (Firestore) para as chaves internas (K_*)
-                    
-                    // CHAVES DE USO GERAL/FILTRO
-                    newRow[K_DATA] = safeGet("Data do plantao:");
-                    newRow[K_MEDICO] = safeGet("Nome do medico (nome completo,  maiusculo) :");
-                    newRow[K_CLIENTE] = safeGet("Cliente");
-                    newRow[K_UNIDADE] = safeGet("Unidade");
-                    newRow[K_TURNO] = safeGet("Diurno ou noturno:");
-                    newRow[K_DIA_SEMANA] = safeGet("Dia da sema:");
-
-                    // CHAVES DE PRODUTIVIDADE
-                    newRow[K_ATEND_NOVO] = safeGet("Numero de Novos atendimentos:", true); 
-                    newRow[K_REAVALIACOES] = safeGet("Numero Reavalicões", true);
-                    newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
-                    newRow[K_ATEND_TOTAL] = safeGet("Total de atendimento novos atendimentos e reavalicões:", true); 
-
-                    // CHAVES DE FICHAS DE RISCO
-                    newRow[K_FICHA_VERDE] = safeGet("Numero de fichas verdes", true);
-                    newRow[K_FICHA_AMARELA] = safeGet("Numero de fichas amarelas", true);
-                    newRow[K_FICHA_LARANJA] = safeGet("Numero de fichas laranja", true);
-                    newRow[K_FICHA_AZUL] = safeGet("Numero de fichas azul", true);
-                    newRow[K_FICHA_BRANCA] = safeGet("Numero de fichas brancas", true);
-
-                    // CHAVES DE EXAMES
-                    newRow[K_ECHO] = safeGet("Numero de ecocardiograma", true);
-                    newRow[K_ELETRO] = safeGet("Numero de eletrocardiograma", true);
-                    newRow[K_LAB] = safeGet("Numero de laboratoriais", true);
-                    newRow[K_RX] = safeGet("Numero de RX", true);
-                    newRow[K_TOMO] = safeGet("Tomografias", true);
-                    newRow[K_USG] = safeGet("USG", true);
-
-                    // CHAVES DE MEDICAÇÕES
-                    newRow[K_MED_EV] = safeGet("Medicacao prescritas EV", true);
-                    newRow[K_MED_IM] = safeGet("Medicacao prescritas IM", true);
-                    newRow[K_MED_SUBCUT] = safeGet("Medicacao Subcultanea", true); 
-                    newRow[K_MED_VO] = safeGet("Medicacao VO ou Subligual", true); 
-                    newRow[K_MED_OFTAL] = safeGet("Medicacao OFTALMICA", true);
-                    newRow[K_MED_INAL] = safeGet("ILAcaO", true); 
-                    
-                    return newRow;
-                })
-                // Filtra linhas sem nome do médico (registros incompletos)
-                .filter(row => row[K_MEDICO] && String(row[K_MEDICO]).trim() !== '');
-                
-                // 3. Verifica e Renderiza
-                if (allData.length > 0) {
-                    populateClienteFilter(allData); 
-                    populateUnidadeFilter(allData); 
-                    populateMedicoFilter(allData);
-                    populateTurnoFilter(allData); 
-                    updateDashboard();
-
-                    document.getElementById('applyFiltersBtn').onclick = updateDashboard;
-                    document.getElementById('clearFiltersBtn').onclick = clearFilters;
-                    
-                    document.getElementById('applyFiltersBtn').disabled = false;
-                    document.getElementById('clearFiltersBtn').disabled = false;
-                    document.getElementById('filtroCliente').disabled = false; 
-                    document.getElementById('filtroUnidade').disabled = false; 
-                    document.getElementById('filtroData').disabled = false; 
-                    document.getElementById('filtroTurno').disabled = false; 
-
-                } else {
-                     // Caso não haja dados no Firebase
-                    document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado na coleção 'produtividade'.</span>`;
-                    
-                    document.getElementById('filtroCliente').disabled = true; 
-                    document.getElementById('filtroUnidade').disabled = true; 
-                    document.getElementById('filtroMedico').disabled = true;
-                    document.getElementById('filtroData').disabled = true;
-                    document.getElementById('filtroTurno').disabled = true;
-                    
-                    document.getElementById('applyFiltersBtn').disabled = true;
-                    document.getElementById('clearFiltersBtn').disabled = true;
-                    
-                    renderDetailedTable([]); 
+                    }
+                    // Caso 3: Se já for uma string "AAAA-MM-DD"
+                    if (typeof value === 'string' && value.includes('-')) {
+                        return value.substring(0, 10);
+                    }
                 }
-            } catch (error) {
-                console.error("Erro ao carregar dados do Firebase:", error);
+
+                // Lógica padrão para números
+                if (isNumber) {
+                    return (Number(value) || 0); 
+                }
                 
-                let errorMessage = "Verifique sua conexão e, CRITICAMENTE, as **Regras de Leitura** no Console do Firebase Firestore.";
-                document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão com o Firebase.</span>`;
-                document.getElementById('dbFileName').value = errorMessage;
-                document.getElementById('dbFileName').style.color = 'red';
-                document.getElementById('totalAtendimentos').textContent = "ERRO";
-                document.getElementById('totalAtendimentosMedico').textContent = "---";
-            } finally {
-                document.getElementById('loadingMessage').style.display = 'none';
-            }
+                // Retorno padrão para strings
+                return (value !== undefined && value !== null) ? String(value).trim() : '';
+            };
+
+            // Mapeando as colunas conforme seu banco de dados
+            // NOTA: Mantive os nomes com os erros de digitação para bater com o seu Firebase
+            newRow[K_DATA] = safeGet("Data do plantao:");
+            newRow[K_MEDICO] = safeGet("Nome do medico (nome completo,  maiusculo) :");
+            newRow[K_CLIENTE] = safeGet("Cliente");
+            newRow[K_UNIDADE] = safeGet("Unidade");
+            newRow[K_TURNO] = safeGet("Diurno ou noturno:");
+            newRow[K_DIA_SEMANA] = safeGet("Dia da sema:");
+
+            // CHAVES DE PRODUTIVIDADE
+            newRow[K_ATEND_NOVO] = safeGet("Numero de Novos atendimentos:", true); 
+            newRow[K_REAVALIACOES] = safeGet("Numero Reavalicões", true);
+            newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
+            newRow[K_ATEND_TOTAL] = safeGet("Total de atendimento novos atendimentos e reavalicões:", true); 
+
+            // CHAVES DE FICHAS DE RISCO
+            newRow[K_FICHA_VERDE] = safeGet("Numero de fichas verdes", true);
+            newRow[K_FICHA_AMARELA] = safeGet("Numero de fichas amarelas", true);
+            newRow[K_FICHA_LARANJA] = safeGet("Numero de fichas laranja", true);
+            newRow[K_FICHA_AZUL] = safeGet("Numero de fichas azul", true);
+            newRow[K_FICHA_BRANCA] = safeGet("Numero de fichas brancas", true);
+
+            // CHAVES DE EXAMES
+            newRow[K_ECHO] = safeGet("Numero de ecocardiograma", true);
+            newRow[K_ELETRO] = safeGet("Numero de eletrocardiograma", true);
+            newRow[K_LAB] = safeGet("Numero de laboratoriais", true);
+            newRow[K_RX] = safeGet("Numero de RX", true);
+            newRow[K_TOMO] = safeGet("Tomografias", true);
+            newRow[K_USG] = safeGet("USG", true);
+
+            // CHAVES DE MEDICAÇÕES
+            newRow[K_MED_EV] = safeGet("Medicacao prescritas EV", true);
+            newRow[K_MED_IM] = safeGet("Medicacao prescritas IM", true);
+            newRow[K_MED_SUBCUT] = safeGet("Medicacao Subcultanea", true); 
+            newRow[K_MED_VO] = safeGet("Medicacao VO ou Subligual", true); 
+            newRow[K_MED_OFTAL] = safeGet("Medicacao OFTALMICA", true);
+            newRow[K_MED_INAL] = safeGet("ILAcaO", true); 
+            
+            return newRow;
+        })
+        .filter(row => row[K_MEDICO] !== ''); // Filtra registros vazios
+
+        // 3. Verifica e Renderiza
+        if (allData.length > 0) {
+            populateClienteFilter(allData); 
+            populateUnidadeFilter(allData); 
+            populateMedicoFilter(allData);
+            populateTurnoFilter(allData); 
+            updateDashboard();
+
+            // Configuração dos botões
+            document.getElementById('applyFiltersBtn').onclick = updateDashboard;
+            document.getElementById('clearFiltersBtn').onclick = clearFilters;
+            
+            // Habilita os campos
+            const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroCliente', 'filtroUnidade', 'filtroData', 'filtroTurno', 'filtroMedico'];
+            controls.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.disabled = false;
+            });
+
+        } else {
+            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado.</span>`;
+            renderDetailedTable([]); 
         }
+    } catch (error) {
+        console.error("Erro ao carregar dados do Firebase:", error);
+        document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão.</span>`;
+    } finally {
+        document.getElementById('loadingMessage').style.display = 'none';
+    }
+}
         
         // --- FUNÇÕES DE DASHBOARD (COMPLETAS, IDÊNTICAS AO SEU CÓDIGO) ---
 
