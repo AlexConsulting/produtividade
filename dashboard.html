@@ -543,44 +543,65 @@
         });
     }
 
-    // --- LÓGICA DE FILTRAGEM ---
+   // --- LÓGICA DE FILTRAGEM COMPLETA E CORRIGIDA ---
     function filterData(data) {
+        // Captura dos elementos do DOM com verificações de existência
         const selectMedicoElement = document.getElementById('filtroMedico');
-        const selectedMedicos = selectMedicoElement ? Array.from(selectMedicoElement.selectedOptions).map(o => o.value.toUpperCase()) : [];
-        const filtroData = document.getElementById('filtroData') ? document.getElementById('filtroData').value : '';
-        const filtroTurno = document.getElementById('filtroTurno') ? document.getElementById('filtroTurno').value : 'todos'; 
-        const filtroCliente = document.getElementById('filtroCliente') ? document.getElementById('filtroCliente').value : 'todos'; 
-        const filtroUnidade = document.getElementById('filtroUnidade') ? document.getElementById('filtroUnidade').value : 'todos';
+        const selectedMedicos = selectMedicoElement ? Array.from(selectMedicoElement.selectedOptions).map(o => o.value.trim().toUpperCase()) : [];
         
-        let filteredData = data.filter(row => {
+        const filtroData = document.getElementById('filtroData') ? document.getElementById('filtroData').value : '';
+        const filtroTurno = document.getElementById('filtroTurno') ? document.getElementById('filtroTurno').value.trim().toUpperCase() : 'TODOS'; 
+        const filtroCliente = document.getElementById('filtroCliente') ? document.getElementById('filtroCliente').value.trim().toUpperCase() : 'TODOS'; 
+        const filtroUnidade = document.getElementById('filtroUnidade') ? document.getElementById('filtroUnidade').value.trim().toUpperCase() : 'TODOS';
+        
+        // Aplicação de todos os filtros em uma única passagem para melhor performance
+        return data.filter(row => {
+            // 1. Filtro de Médico (Múltipla Seleção)
             const medicoNome = row[K_MEDICO] ? String(row[K_MEDICO]).trim().toUpperCase() : '';
-            if (selectedMedicos.length === 0) return true;
-            return selectedMedicos.includes(medicoNome);
-        });
+            const matchMedico = selectedMedicos.length === 0 || selectedMedicos.includes(medicoNome);
 
-        filteredData = filteredData.filter(row => {
+            // 2. Filtro de Cliente
             const clienteNome = row[K_CLIENTE] ? String(row[K_CLIENTE]).trim().toUpperCase() : '';
-            return filtroCliente === 'todos' || clienteNome === filtroCliente.toUpperCase();
-        });
+            const matchCliente = filtroCliente === 'TODOS' || clienteNome === filtroCliente;
 
-        filteredData = filteredData.filter(row => {
+            // 3. Filtro de Unidade
             const unidadeNome = row[K_UNIDADE] ? String(row[K_UNIDADE]).trim().toUpperCase() : '';
-            return filtroUnidade === 'todos' || unidadeNome === filtroUnidade.toUpperCase();
-        });
+            const matchUnidade = filtroUnidade === 'TODOS' || unidadeNome === filtroUnidade;
 
-        filteredData = filteredData.filter(row => {
+            // 4. Filtro de Turno
             const turnoNome = row[K_TURNO] ? String(row[K_TURNO]).trim().toUpperCase() : '';
-            return filtroTurno === 'todos' || turnoNome === filtroTurno.toUpperCase();
+            const matchTurno = filtroTurno === 'TODOS' || turnoNome === filtroTurno;
+
+            // 5. Filtro de Data (Comparação de string YYYY-MM-DD)
+            const rowDate = row[K_DATA] ? String(row[K_DATA]).substring(0, 10) : '';
+            const matchData = !filtroData || rowDate === filtroData;
+
+            // Retorna verdadeiro apenas se passar em TODOS os filtros
+            return matchMedico && matchCliente && matchUnidade && matchTurno && matchData;
         });
+    }
 
-        if (filtroData) {
-            filteredData = filteredData.filter(row => {
-                const rowDate = String(row[K_DATA] || '').substring(0, 10);
-                return rowDate >= filtroData;
-            });
+    // --- FUNÇÕES DE INTERFACE (PARA HABILITAR OS BOTÕES) ---
+    function toggleFilterAlert(show) {
+        const alert = document.getElementById('filterAlert');
+        if (alert) alert.style.display = show ? 'block' : 'none';
+    }
+
+    function updateDashboard() {
+        // Esta função une a filtragem com a atualização visual
+        const filteredData = filterData(allData);
+
+        if (filteredData.length === 0) {
+            toggleFilterAlert(true);
+            generateKPIs([]); 
+            createCharts([]);
+            renderDetailedTable([]); 
+        } else {
+            toggleFilterAlert(false);
+            generateKPIs(filteredData);
+            createCharts(filteredData);
+            renderDetailedTable(filteredData); 
         }
-
-        return filteredData;
     }
 
 // --- GERAÇÃO DE KPIS E GRÁFICOS ---
