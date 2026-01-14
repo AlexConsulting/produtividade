@@ -94,44 +94,51 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-6 col-lg-3">
                     <label for="filtroCliente" class="form-label fw-bold">1. Filtrar por Cliente:</label>
-                    <select class="form-select" id="filtroCliente">
-                        <option value="todos">Todos</option>
+                    <select class="form-select" id="filtroCliente" disabled>
+                        <option value="todos">Carregando...</option>
                     </select>
                 </div>
                 
                 <div class="col-md-6 col-lg-3">
                     <label for="filtroUnidade" class="form-label fw-bold">2. Filtrar por Unidade:</label>
-                    <select class="form-select" id="filtroUnidade">
-                        <option value="todos">Todos</option>
+                    <select class="form-select" id="filtroUnidade" disabled>
+                        <option value="todos">Carregando...</option>
                     </select>
                 </div>
 
                 <div class="col-md-12 col-lg-6">
-                    <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico:</label>
-                    <select class="form-select" id="filtroMedico" multiple size="5">
-                        </select>
+                    <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico (Use Ctrl/Cmd para múltiplos):</label>
+                    <select class="form-select" id="filtroMedico" multiple size="5" disabled>
+                        <option value="todos">Carregando...</option>
+                    </select>
                 </div>
             </div>
             
             <div class="row g-3">
                 <div class="col-md-4">
                     <label for="filtroTurno" class="form-label fw-bold">4. Filtrar por Turno:</label>
-                    <select class="form-select" id="filtroTurno">
-                        <option value="todos">Todos</option>
+                    <select class="form-select" id="filtroTurno" disabled>
+                        <option value="todos">Carregando...</option>
                     </select>
                 </div>
                 <div class="col-md-4">
                     <label for="filtroData" class="form-label fw-bold">5. Filtrar por Data (A partir de):</label>
-                    <input type="date" class="form-control" id="filtroData">
+                    <input type="date" class="form-control" id="filtroData" disabled>
                 </div>
             </div>
             
             <div class="row mt-3">
                 <div class="col-md-6">
-                    <button class="btn btn-primary w-100" id="applyFiltersBtn">Aplicar Filtros</button>
+                    <button class="btn btn-primary w-100" id="applyFiltersBtn" disabled>Aplicar Filtros</button>
                 </div>
                 <div class="col-md-6">
-                    <button class="btn btn-secondary w-100" id="clearFiltersBtn">Limpar Filtros</button>
+                    <button class="btn btn-secondary w-100" id="clearFiltersBtn" disabled>Limpar Filtros</button>
+                </div>
+            </div>
+            <div class="row g-3 mt-3">
+                <div class="col-md-12">
+                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS:</label>
+                    <input class="form-control" type="text" id="dbFileName" value="Coleção: produtividade" readonly style="color:#007bff;">
                 </div>
             </div>
         </section>
@@ -185,7 +192,7 @@
             <div class="row">
                 <div class="col-lg-6 mb-4">
                     <div class="chart-container" style="height: 400px;">
-                        <h5 class="text-center mb-3">Produtividade por Médico</h5>
+                        <h5 class="text-center mb-3">Produtividade por Médico (Atend. Totais)</h5>
                         <canvas id="produtividadePorMedicoChart"></canvas>
                     </div>
                 </div>
@@ -195,18 +202,44 @@
                         <canvas id="atendimentosDiaSemanaChart"></canvas>
                     </div>
                 </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Exames Solicitados por Médico</h5>
+                        <canvas id="examesPorMedicoChart"></canvas>
+                    </div>
                 </div>
-        </section>
+                <div class="col-lg-6 mb-4">
+                    <div class="chart-container" style="height: 400px;">
+                        <h5 class="text-center mb-3">Medicações Prescritas por Médico</h5>
+                        <canvas id="medicacoesPorMedicoChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="col-12 mb-4">
+                    <div class="chart-container" style="height: 300px;">
+                        <h5 class="text-center mb-3">Fichas de Classificação de Risco (Total Geral)</h5>
+                        <canvas id="fichasClassificacaoChart"></canvas>
+                    </div>
+                </div>
 
+                <div class="col-12 mb-4">
+                    <div class="chart-container" style="height: 300px;">
+                        <h5 class="text-center mb-3">Medicações Prescritas (Total Geral)</h5>
+                        <canvas id="medicacoesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
         <section id="detailed-data" class="mb-5">
             <div class="chart-container p-4">
-                <h4 class="mb-3">Detalhes da Produtividade</h4>
-                <div id="detailedTableContainer" style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd;">
-                    </div>
+                <h4 class="mb-3" id="detailed-data-title">Detalhes da Produtividade</h4>
+                <div id="detailedTableContainer" style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd; border-radius: .3rem;">
+                    <p class="text-center text-muted p-4 mb-0">Selecione um médico ou aplique filtros para carregar os dados detalhados.</p>
+                </div>
             </div>
         </section>
     </main>
-
     <footer class="text-center text-muted py-3">Dashboard de Produtividade</footer>
 
 <script>
@@ -430,7 +463,7 @@
                 populateMedicoFilter(allData);
                 populateTurnoFilter(allData);
                 populateClienteFilter(allData); // ADICIONE ESTA LINHA
-				populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
+			populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
                 updateDashboard();
 
                 const applyBtn = document.getElementById('applyFiltersBtn');
