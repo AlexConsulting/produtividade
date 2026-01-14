@@ -463,7 +463,7 @@
                 populateMedicoFilter(allData);
                 populateTurnoFilter(allData);
                 populateClienteFilter(allData); // ADICIONE ESTA LINHA
-			populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
+				populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
                 updateDashboard();
 
                 const applyBtn = document.getElementById('applyFiltersBtn');
@@ -490,59 +490,73 @@
         }
     }
 
-    // --- FUNÇÕES DE POPULAÇÃO DOS FILTROS ---
+// --- FUNÇÕES DE POPULAÇÃO DOS FILTROS (VERSÃO CORRIGIDA) ---
+
     function populateClienteFilter(data) { 
-        const clientesValidos = data.map(item => item[K_CLIENTE] ? String(item[K_CLIENTE]).trim().toUpperCase() : null).filter(c => c);
-        const clientes = [...new Set(clientesValidos)].sort();
+        // Nome ajustado com "e" para bater com a chamada na linha 465 do seu dashboard.html
         const select = document.getElementById('filtroCliente');
         if(!select) return;
+
+        const clientesValidos = data.map(item => item[K_CLIENTE] ? String(item[K_CLIENTE]).trim().toUpperCase() : null).filter(c => c);
+        const clientes = [...new Set(clientesValidos)].sort();
+        
         select.innerHTML = '<option value="todos">Todos os Clientes</option>';
         clientes.forEach(c => {
             const option = document.createElement('option');
             option.value = c; option.textContent = c;
             select.appendChild(option);
         });
+        select.disabled = false; // DESBLOQUEIA O FILTRO
     }
 
     function populateUnidadeFilter(data) { 
-        const unidadesValidas = data.map(item => item[K_UNIDADE] ? String(item[K_UNIDADE]).trim().toUpperCase() : null).filter(u => u);
-        const unidades = [...new Set(unidadesValidas)].sort();
+        // Nome ajustado com "e" para bater com a chamada no seu initDashboard
         const select = document.getElementById('filtroUnidade');
         if(!select) return;
+
+        const unidadesValidas = data.map(item => item[K_UNIDADE] ? String(item[K_UNIDADE]).trim().toUpperCase() : null).filter(u => u);
+        const unidades = [...new Set(unidadesValidas)].sort();
+        
         select.innerHTML = '<option value="todos">Todas as Unidades</option>';
         unidades.forEach(u => {
             const option = document.createElement('option');
             option.value = u; option.textContent = u;
             select.appendChild(option);
         });
+        select.disabled = false; // DESBLOQUEIA O FILTRO
     }
 
     function populateMedicoFilter(data) {
-        const nomesValidos = data.map(item => item[K_MEDICO] ? String(item[K_MEDICO]).trim().toUpperCase() : null).filter(n => n);
-        const medicos = [...new Set(nomesValidos)].sort();
         const select = document.getElementById('filtroMedico');
         if(!select) return;
-        select.innerHTML = '';
+
+        const nomesValidos = data.map(item => item[K_MEDICO] ? String(item[K_MEDICO]).trim().toUpperCase() : null).filter(n => n);
+        const medicos = [...new Set(nomesValidos)].sort();
+        
+        select.innerHTML = ''; // Select múltiplo
         medicos.forEach(m => {
             const option = document.createElement('option');
             option.value = m; option.textContent = m;
             select.appendChild(option);
         });
+        select.disabled = false; // DESBLOQUEIA O FILTRO
     }
 
     function populateTurnoFilter(data) {
-        const turnosValidos = data.map(item => item[K_TURNO] ? String(item[K_TURNO]).trim().toUpperCase() : null).filter(t => t);
-        const turnos = [...new Set(turnosValidos)].sort();
         const select = document.getElementById('filtroTurno');
         if(!select) return;
+
+        const turnosValidos = data.map(item => item[K_TURNO] ? String(item[K_TURNO]).trim().toUpperCase() : null).filter(t => t);
+        const turnos = [...new Set(turnosValidos)].sort();
+        
         select.innerHTML = '<option value="todos">Todos os Turnos</option>';
         turnos.forEach(t => {
             const option = document.createElement('option');
             option.value = t; option.textContent = t;
             select.appendChild(option);
         });
+        select.disabled = false; // DESBLOQUEIA O FILTRO
     }
-
    // --- LÓGICA DE FILTRAGEM COMPLETA E CORRIGIDA ---
     function filterData(data) {
         // Captura dos elementos do DOM com verificações de existência
@@ -612,23 +626,26 @@
             if (el) el.textContent = value.toLocaleString('pt-BR');
         };
 
-        const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
-        safeSetText('totalAtendimentos', totalAtendimentosOriginal);
-        
-        const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
+        // 1. Calcula Novos Atendimentos
+        const novosAtendimentos = data.reduce((sum, row) => sum + (Number(row[K_ATEND_NOVO]) || 0), 0);
         safeSetText('totalAtendimentosMedico', novosAtendimentos);
         
-        const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
+        // 2. Calcula Reavaliações (EV)
+        const totalReavaliacoes = data.reduce((sum, row) => sum + (Number(row[K_REAVALIACOES]) || 0), 0);
         safeSetText('totalEV', totalReavaliacoes);
         
-        const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
-        safeSetText('totalEcocardiogramas', totalGeralCompleto);
+        // 3. SOMA TOTAL (Novos + Reavaliações) - CORREÇÃO DO CARD AZUL
+        const somaTudo = novosAtendimentos + totalReavaliacoes;
+        safeSetText('totalAtendimentos', somaTudo); // ID correto do HTML
         
+        // 4. Calcula Turnos (Novos Atendimentos por Turno)
         const turnos = data.reduce((acc, row) => {
             const t = String(row[K_TURNO] || '').trim().toUpperCase();
-            if (t === 'DIURNO') acc.d += (row[K_ATEND_NOVO] || 0);
-            else if (t === 'INTERMEDIARIO') acc.i += (row[K_ATEND_NOVO] || 0);
-            else if (t === 'NOTURNO') acc.n += (row[K_ATEND_NOVO] || 0);
+            const qtd = Number(row[K_ATEND_NOVO]) || 0;
+
+            if (t.includes('DIURNO')) acc.d += qtd;
+            else if (t.includes('INTERMEDIARIO') || t.includes('INTERMEDIÁRIO')) acc.i += qtd;
+            else if (t.includes('NOTURNO')) acc.n += qtd;
             return acc;
         }, { d: 0, i: 0, n: 0 });
         
@@ -639,19 +656,20 @@
 
     function createCharts(data) {
         // Destruir instâncias existentes se houver
-        if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
-        if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
-        if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
-        if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
-        if (medicacoesChartInstance) medicacoesChartInstance.destroy();
-        if (fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy();
+        if (typeof examesPorMedicoChartInstance !== 'undefined' && examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
+        if (typeof medicacoesPorMedicoChartInstance !== 'undefined' && medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
+        if (typeof produtividadePorMedicoChartInstance !== 'undefined' && produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
+        if (typeof atendimentosDiaSemanaChartInstance !== 'undefined' && atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
+        if (typeof medicacoesChartInstance !== 'undefined' && medicacoesChartInstance) medicacoesChartInstance.destroy();
+        if (typeof fichasClassificacaoChartInstance !== 'undefined' && fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy();
 
         if (data.length === 0) return;
 
-        // 1. Produtividade por Médico
+        // 1. Produtividade por Médico (Corrigido para usar K_TOTAL_GERAL)
         const prodData = data.reduce((acc, row) => {
-            const m = String(row[K_MEDICO]).trim();
-            acc[m] = (acc[m] || 0) + (row[K_ATEND_TOTAL] || 0);
+            const m = String(row[K_MEDICO] || 'N/I').trim();
+            // Somamos o total geral (Novos + Reavaliações) para o gráfico não vir vazio
+            acc[m] = (acc[m] || 0) + (Number(row[K_TOTAL_GERAL]) || 0);
             return acc;
         }, {});
         const prodSorted = Object.entries(prodData).sort((a,b) => b[1] - a[1]);
@@ -662,17 +680,17 @@
                 type: 'bar',
                 data: {
                     labels: prodSorted.map(x => x[0]),
-                    datasets: [{ label: 'Atendimentos', data: prodSorted.map(x => x[1]), backgroundColor: colors.primario }]
+                    datasets: [{ label: 'Atendimentos Totais', data: prodSorted.map(x => x[1]), backgroundColor: colors.primario }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
             });
         }
 
-        // 2. Dia da Semana
+        // 2. Dia da Semana (Corrigido para usar K_TOTAL_GERAL)
         const diasOrdem = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
         const diasData = data.reduce((acc, row) => {
             const d = String(row[K_DIA_SEMANA] || '').toUpperCase().trim();
-            acc[d] = (acc[d] || 0) + (row[K_ATEND_TOTAL] || 0);
+            acc[d] = (acc[d] || 0) + (Number(row[K_TOTAL_GERAL]) || 0);
             return acc;
         }, {});
         const diasLabels = diasOrdem.filter(d => diasData[d] !== undefined);
@@ -690,7 +708,7 @@
         }
 
         // 3. Exames por Médico (Stacked)
-        const medicosExames = [...new Set(data.map(r => String(r[K_MEDICO]).trim()))].sort();
+        const medicosExames = [...new Set(data.map(r => String(r[K_MEDICO] || 'N/I').trim()))].sort();
         const datasetsExames = [
             { label: 'Lab', key: K_LAB, color: colors.primario },
             { label: 'RX', key: K_RX, color: colors.secundario },
@@ -699,7 +717,7 @@
         ].map(config => ({
             label: config.label,
             backgroundColor: config.color,
-            data: medicosExames.map(m => data.filter(r => String(r[K_MEDICO]).trim() === m).reduce((s, r) => s + (r[config.key] || 0), 0))
+            data: medicosExames.map(m => data.filter(r => String(r[K_MEDICO]).trim() === m).reduce((s, r) => s + (Number(r[config.key]) || 0), 0))
         }));
 
         const ctxExames = document.getElementById('examesPorMedicoChart');
@@ -714,8 +732,8 @@
         // 4. Medicações por Médico
         const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
         const medPorMed = data.reduce((acc, row) => {
-            const m = String(row[K_MEDICO]).trim();
-            const total = medCols.reduce((s, col) => s + (row[col] || 0), 0);
+            const m = String(row[K_MEDICO] || 'N/I').trim();
+            const total = medCols.reduce((s, col) => s + (Number(row[col]) || 0), 0);
             acc[m] = (acc[m] || 0) + total;
             return acc;
         }, {});
@@ -736,7 +754,7 @@
         // 5. Fichas por Classificação
         const fichasCols = [K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA];
         const fichasLabels = ['Verde', 'Amarela', 'Laranja', 'Azul', 'Branca'];
-        const fichasValues = fichasCols.map(col => data.reduce((s, r) => s + (r[col] || 0), 0));
+        const fichasValues = fichasCols.map(col => data.reduce((s, r) => s + (Number(r[col]) || 0), 0));
 
         const ctxFichas = document.getElementById('fichasClassificacaoChart');
         if (ctxFichas) {
@@ -755,7 +773,7 @@
 
         // 6. Volume por Tipo de Medicação
         const medLabels = ['EV', 'IM', 'Subcut', 'VO', 'Oftal', 'Inal'];
-        const medValues = medCols.map(col => data.reduce((s, r) => s + (r[col] || 0), 0));
+        const medValues = medCols.map(col => data.reduce((s, r) => s + (Number(r[col]) || 0), 0));
 
         const ctxMedV = document.getElementById('medicacoesChart');
         if (ctxMedV) {
