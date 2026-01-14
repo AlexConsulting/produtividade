@@ -583,19 +583,25 @@
         return filteredData;
     }
 
-    // --- GERAÇÃO DE KPIS E GRÁFICOS ---
+// --- GERAÇÃO DE KPIS E GRÁFICOS ---
     function generateKPIs(data) {
+        // Função auxiliar para evitar erro caso o elemento ID não exista no HTML
+        const safeSetText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value.toLocaleString('pt-BR');
+        };
+
         const totalAtendimentosOriginal = data.reduce((sum, row) => sum + (row[K_ATEND_TOTAL] || 0), 0);
-        document.getElementById('totalAtendimentos').textContent = totalAtendimentosOriginal.toLocaleString('pt-BR');
+        safeSetText('totalAtendimentos', totalAtendimentosOriginal);
         
         const novosAtendimentos = data.reduce((sum, row) => sum + (row[K_ATEND_NOVO] || 0), 0);
-        document.getElementById('totalAtendimentosMedico').textContent = novosAtendimentos.toLocaleString('pt-BR');
+        safeSetText('totalAtendimentosMedico', novosAtendimentos);
         
         const totalReavaliacoes = data.reduce((sum, row) => sum + (row[K_REAVALIACOES] || 0), 0);
-        document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString('pt-BR');
+        safeSetText('totalEV', totalReavaliacoes);
         
         const totalGeralCompleto = data.reduce((sum, row) => sum + (row[K_TOTAL_GERAL] || 0), 0);
-        document.getElementById('totalEcocardiogramas').textContent = totalGeralCompleto.toLocaleString('pt-BR');
+        safeSetText('totalEcocardiogramas', totalGeralCompleto);
         
         const turnos = data.reduce((acc, row) => {
             const t = String(row[K_TURNO] || '').trim().toUpperCase();
@@ -605,12 +611,13 @@
             return acc;
         }, { d: 0, i: 0, n: 0 });
         
-        document.getElementById('kpiDiurno').textContent = turnos.d.toLocaleString('pt-BR');
-        document.getElementById('kpiIntermediario').textContent = turnos.i.toLocaleString('pt-BR');
-        document.getElementById('kpiNoturno').textContent = turnos.n.toLocaleString('pt-BR');
+        safeSetText('kpiDiurno', turnos.d);
+        safeSetText('kpiIntermediario', turnos.i);
+        safeSetText('kpiNoturno', turnos.n);
     }
 
     function createCharts(data) {
+        // Destruir instâncias existentes se houver
         if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
         if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
         if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
@@ -628,14 +635,17 @@
         }, {});
         const prodSorted = Object.entries(prodData).sort((a,b) => b[1] - a[1]);
 
-        produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
-            type: 'bar',
-            data: {
-                labels: prodSorted.map(x => x[0]),
-                datasets: [{ label: 'Atendimentos', data: prodSorted.map(x => x[1]), backgroundColor: colors.primario }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
-        });
+        const ctxProd = document.getElementById('produtividadePorMedicoChart');
+        if (ctxProd) {
+            produtividadePorMedicoChartInstance = new Chart(ctxProd, {
+                type: 'bar',
+                data: {
+                    labels: prodSorted.map(x => x[0]),
+                    datasets: [{ label: 'Atendimentos', data: prodSorted.map(x => x[1]), backgroundColor: colors.primario }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
 
         // 2. Dia da Semana
         const diasOrdem = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
@@ -646,14 +656,17 @@
         }, {});
         const diasLabels = diasOrdem.filter(d => diasData[d] !== undefined);
 
-        atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
-            type: 'bar',
-            data: {
-                labels: diasLabels,
-                datasets: [{ label: 'Total', data: diasLabels.map(d => diasData[d]), backgroundColor: colors.secundario }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        const ctxDia = document.getElementById('atendimentosDiaSemanaChart');
+        if (ctxDia) {
+            atendimentosDiaSemanaChartInstance = new Chart(ctxDia, {
+                type: 'bar',
+                data: {
+                    labels: diasLabels,
+                    datasets: [{ label: 'Total', data: diasLabels.map(d => diasData[d]), backgroundColor: colors.secundario }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
 
         // 3. Exames por Médico (Stacked)
         const medicosExames = [...new Set(data.map(r => String(r[K_MEDICO]).trim()))].sort();
@@ -668,11 +681,14 @@
             data: medicosExames.map(m => data.filter(r => String(r[K_MEDICO]).trim() === m).reduce((s, r) => s + (r[config.key] || 0), 0))
         }));
 
-        examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
-            type: 'bar',
-            data: { labels: medicosExames, datasets: datasetsExames },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
-        });
+        const ctxExames = document.getElementById('examesPorMedicoChart');
+        if (ctxExames) {
+            examesPorMedicoChartInstance = new Chart(ctxExames, {
+                type: 'bar',
+                data: { labels: medicosExames, datasets: datasetsExames },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
 
         // 4. Medicações por Médico
         const medCols = [K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL];
@@ -684,44 +700,53 @@
         }, {});
         const medSorted = Object.entries(medPorMed).sort((a,b) => b[1] - a[1]);
 
-        medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
-            type: 'bar',
-            data: {
-                labels: medSorted.map(x => x[0]),
-                datasets: [{ label: 'Prescrições', data: medSorted.map(x => x[1]), backgroundColor: colors.vermelho }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
-        });
+        const ctxMedP = document.getElementById('medicacoesPorMedicoChart');
+        if (ctxMedP) {
+            medicacoesPorMedicoChartInstance = new Chart(ctxMedP, {
+                type: 'bar',
+                data: {
+                    labels: medSorted.map(x => x[0]),
+                    datasets: [{ label: 'Prescrições', data: medSorted.map(x => x[1]), backgroundColor: colors.vermelho }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
 
         // 5. Fichas por Classificação
         const fichasCols = [K_FICHA_VERDE, K_FICHA_AMARELA, K_FICHA_LARANJA, K_FICHA_AZUL, K_FICHA_BRANCA];
         const fichasLabels = ['Verde', 'Amarela', 'Laranja', 'Azul', 'Branca'];
         const fichasValues = fichasCols.map(col => data.reduce((s, r) => s + (r[col] || 0), 0));
 
-        fichasClassificacaoChartInstance = new Chart(document.getElementById('fichasClassificacaoChart'), {
-            type: 'bar',
-            data: {
-                labels: fichasLabels,
-                datasets: [{ 
-                    data: fichasValues, 
-                    backgroundColor: [colors.secundario, colors.amarelo, colors.laranja, colors.primario, colors.cinza] 
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
-        });
+        const ctxFichas = document.getElementById('fichasClassificacaoChart');
+        if (ctxFichas) {
+            fichasClassificacaoChartInstance = new Chart(ctxFichas, {
+                type: 'bar',
+                data: {
+                    labels: fichasLabels,
+                    datasets: [{ 
+                        data: fichasValues, 
+                        backgroundColor: [colors.secundario, colors.amarelo, colors.laranja, colors.primario, colors.cinza] 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
+            });
+        }
 
         // 6. Volume por Tipo de Medicação
         const medLabels = ['EV', 'IM', 'Subcut', 'VO', 'Oftal', 'Inal'];
         const medValues = medCols.map(col => data.reduce((s, r) => s + (r[col] || 0), 0));
 
-        medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
-            type: 'bar',
-            data: {
-                labels: medLabels,
-                datasets: [{ label: 'Total Geral', data: medValues, backgroundColor: colors.amarelo }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
-        });
+        const ctxMedV = document.getElementById('medicacoesChart');
+        if (ctxMedV) {
+            medicacoesChartInstance = new Chart(ctxMedV, {
+                type: 'bar',
+                data: {
+                    labels: medLabels,
+                    datasets: [{ label: 'Total Geral', data: medValues, backgroundColor: colors.amarelo }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
     }
 
     // --- RENDERIZAÇÃO DA TABELA ---
@@ -738,7 +763,7 @@
 
         let tableHTML = `<table class="table table-striped table-hover table-sm"><thead><tr>`;
         COLUMN_ORDER.forEach(key => {
-            tableHTML += `<th class="text-nowrap">${DISPLAY_COLUMNS[key]}</th>`;
+            tableHTML += `<th class="text-nowrap">${DISPLAY_COLUMNS[key] || key}</th>`;
         });
         tableHTML += `</tr></thead><tbody>`;
 
@@ -799,11 +824,11 @@
         }
     }
 
-    // Início automático
-    initDashboard();
-
-</script>
-
+    // Início automático após carregar tudo
+    initDashboard();	
+	
+	</script>
+	
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
