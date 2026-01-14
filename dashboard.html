@@ -391,116 +391,113 @@
          * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
          */
 async function initDashboard() {
-    document.getElementById('loadingMessage').style.display = 'block';
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) loadingMessage.style.display = 'block';
 
     try {
-        // 1. Consulta todos os documentos da coleção no Firestore
+        console.log("Tentando acessar a coleção:", PRODUTIVIDADE_COLLECTION);
+        
+        // 1. Busca os dados reais do Firebase
         const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
         
-        // 2. Mapeia os documentos para o array allData
+        if (snapshot.empty) {
+            console.error("ERRO: A coleção no Firebase está vazia ou o nome está errado.");
+            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Coleção '${PRODUTIVIDADE_COLLECTION}' não encontrada ou vazia no Firebase.</span>`;
+            return;
+        }
+
+        // Log do primeiro documento para você conferir os nomes dos campos no F12
+        console.log("Exemplo de documento vindo do Firebase:", snapshot.docs[0].data());
+
+        // 2. Mapeia os documentos para o formato do Dashboard
         allData = snapshot.docs.map(doc => {
-            let data = doc.data();
+            const data = doc.data();
             const newRow = {};
             
-            // Função auxiliar para pegar o valor do Firebase e formatar
             const safeGet = (fieldName, isNumber = false) => {
                 let value = data[fieldName];
                 
-                // --- TRATAMENTO DE DATA (Baseado no nome exato do CSV) ---
-                if (fieldName === "Data do plantão:  ") {
-                    // Se for Timestamp do Firebase
+                // Tratamento de Data (Essencial para os filtros funcionarem)
+                // O nome abaixo deve ser IGUAL ao que aparece no seu Firestore
+                if (fieldName === "Data do plantão:  " || fieldName === "Data do plantao:") {
                     if (value && typeof value.toDate === 'function') {
                         return value.toDate().toISOString().substring(0, 10);
                     }
-                    // Se for string brasileira DD/MM/AAAA
                     if (typeof value === 'string' && value.includes('/')) {
-                        const partes = value.split('/');
-                        if (partes.length === 3) {
-                            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-                        }
-                    }
-                    // Se for string AAAA-MM-DD
-                    if (typeof value === 'string' && value.includes('-')) {
-                        return value.substring(0, 10);
+                        const p = value.split('/');
+                        return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
                     }
                 }
 
-                if (isNumber) {
-                    return (Number(value) || 0); 
-                }
-                
+                if (isNumber) return (Number(value) || 0);
                 return (value !== undefined && value !== null) ? String(value).trim() : '';
             };
 
-            // Mapeando TODAS as colunas baseadas no seu arquivo CSV real
-            // Nota: Os nomes abaixo agora conferem com "Produtividade.csv"
-            newRow[K_DATA] = safeGet("Data do plantão:  ");
+            // MAPEAMENTO DOS CAMPOS (Ajuste os nomes em aspas se no Firebase estiver diferente)
+            newRow[K_DATA] = safeGet("Data do plantão:  "); // Verifique se há espaços extras
             newRow[K_TURNO] = safeGet("Diurno ou noturno:");
             newRow[K_DIA_SEMANA] = safeGet("Dia da semana:");
             newRow[K_MEDICO] = safeGet("Nome do médico ");
 
-            // CHAVES DE PRODUTIVIDADE
-            newRow[K_ATEND_NOVO] = safeGet("Número de Novos atendimentos:", true); 
+            // Produtividade
+            newRow[K_ATEND_NOVO] = safeGet("Número de Novos atendimentos:", true);
             newRow[K_REAVALIACOES] = safeGet("Número Reavalições", true);
-            newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
+            newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES];
 
-            // CHAVES DE FICHAS DE RISCO
+            // Fichas
             newRow[K_FICHA_VERDE] = safeGet("Número de fichas verdes", true);
             newRow[K_FICHA_AMARELA] = safeGet("Número de fichas amarelas", true);
             newRow[K_FICHA_LARANJA] = safeGet("Número de fichas laranja", true);
             newRow[K_FICHA_AZUL] = safeGet("Número de fichas azul", true);
             newRow[K_FICHA_BRANCA] = safeGet("Número de fichas brancas", true);
 
-            // CHAVES DE EXAMES
-            newRow[K_ECHO] = safeGet("Número de ecocardiograma", true);
-            newRow[K_ELETRO] = safeGet("Número de eletrocardiograma", true);
+            // Exames e Medicações
             newRow[K_LAB] = safeGet("Número de laboratoriais", true);
             newRow[K_RX] = safeGet("Número de RX", true);
             newRow[K_TOMO] = safeGet("Tomografias", true);
             newRow[K_USG] = safeGet("USG", true);
-
-            // CHAVES DE MEDICAÇÕES
             newRow[K_MED_EV] = safeGet("Medicação prescritas EV", true);
             newRow[K_MED_IM] = safeGet("Medicação prescritas IM", true);
-            newRow[K_MED_SUBCUT] = safeGet("Medicação Subcultanea", true); 
-            newRow[K_MED_VO] = safeGet("Medicação VO ou Subligual", true); 
+            newRow[K_MED_SUBCUT] = safeGet("Medicação Subcultanea", true);
+            newRow[K_MED_VO] = safeGet("Medicação VO ou Subligual", true);
             newRow[K_MED_INAL] = safeGet("INALATORIA", true);
-            newRow[K_MED_OFTAL] = safeGet("OFTALMICA", true);
             
             return newRow;
         })
-        .filter(row => row[K_MEDICO] !== ''); 
+        .filter(row => row[K_MEDICO] !== ''); // Remove registros inválidos
 
-        // 3. Verifica e Renderiza
+        console.log("Total de registros processados:", allData.length);
+
+        // 3. Inicializa a Interface
         if (allData.length > 0) {
-            // Como seu CSV não tem 'Cliente' e 'Unidade', vamos popular apenas o que existe
-            if (typeof populateMedicoFilter === 'function') populateMedicoFilter(allData);
-            if (typeof populateTurnoFilter === 'function') populateTurnoFilter(allData); 
+            populateMedicoFilter(allData);
+            populateTurnoFilter(allData); 
             
             updateDashboard();
 
+            // Configura botões de ação
             document.getElementById('applyFiltersBtn').onclick = updateDashboard;
             document.getElementById('clearFiltersBtn').onclick = clearFilters;
             
-            // Habilita os controles que existem no seu HTML
+            // Ativa os filtros na tela
             const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroData', 'filtroTurno', 'filtroMedico'];
             controls.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.disabled = false;
             });
-
+            
+            document.getElementById('data-source-label').innerHTML = `<span class="badge bg-success">Firebase Conectado: ${allData.length} registros</span>`;
         } else {
-            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado no Firestore.</span>`;
-            renderDetailedTable([]); 
+            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum médico encontrado nos dados processados.</span>`;
         }
+
     } catch (error) {
         console.error("Erro ao carregar dados do Firebase:", error);
-        document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão com o Firebase.</span>`;
+        document.getElementById('data-source-label').innerHTML = `ERRO: <span style="color:red;">Falha de conexão com o banco de dados.</span>`;
     } finally {
-        document.getElementById('loadingMessage').style.display = 'none';
+        if (loadingMessage) loadingMessage.style.display = 'none';
     }
 }
-        
         // --- FUNÇÕES DE DASHBOARD (COMPLETAS, IDÊNTICAS AO SEU CÓDIGO) ---
 
         // Funções de População de Filtros (Mantidas)
