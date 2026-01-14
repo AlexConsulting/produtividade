@@ -322,34 +322,28 @@
         // --- CHAVES DE CORRESPONDÊNCIA PARA ENCONTRAR COLUNAS NO DB (IGNORADO/MANTIDO APENAS POR REFERÊNCIA) ---
         // (IDÊNTICO AO SEU ORIGINAL, MAS AGORA É MANUALMENTE MANTIDO PELA INITDASHBOARD)
         const COLUMN_MAP_KEYS = {
-            [K_DATA]: 'Data do plantao',
-            [K_MEDICO]: 'Nome do medico',
-            [K_ATEND_TOTAL]: 'Total de atendimento', 
-            [K_ATEND_NOVO]: 'Numero de Novos atendimentos:', 
-            [K_REAVALIACOES]: 'Numero Reavalicões', 
-            [K_TOTAL_GERAL]: 'Total de atendimento novos atendimentos e reavalicões:',
-            [K_ECHO]: 'ecocardiograma',
-            [K_ELETRO]: 'eletrocardiograma',
-            [K_LAB]: 'laboratoriais',
-            [K_RX]: 'RX',
-            [K_TOMO]: 'Tomografias',
-            [K_USG]: 'USG',
-            [K_MED_EV]: 'EV', 
-            [K_MED_IM]: 'IM', 
-            [K_MED_SUBCUT]: 'Subcultanea',
-            [K_MED_VO]: 'VO ou Subligual',
-            [K_MED_OFTAL]: 'OFTALMICA',
-            [K_MED_INAL]: 'ILAcaO',
-            [K_DIA_SEMANA]: 'Dia da sema',
-            [K_TURNO]: 'Diurno ou noturno',
-            [K_CLIENTE]: 'Cliente', 
-            [K_UNIDADE]: 'Unidade', 
-            [K_FICHA_VERDE]: 'Numero de fichas verdes', 
-            [K_FICHA_AMARELA]: 'Numero de fichas amarelas', 
-            [K_FICHA_LARANJA]: 'Numero de fichas laranja', 
-            [K_FICHA_AZUL]: 'Numero de fichas azul', 
-            [K_FICHA_BRANCA]: 'Numero de fichas brancas' 
-        };
+    [K_DATA]: "Data do plantão:  ",
+    [K_TURNO]: "Diurno ou noturno:",
+    [K_DIA_SEMANA]: "Dia da semana:",
+    [K_MEDICO]: "Nome do médico ",
+    [K_ATEND_NOVO]: "Número de Novos atendimentos:",
+    [K_REAVALIACOES]: "Número Reavalições",
+    [K_FICHA_BRANCA]: "Número de fichas brancas",
+    [K_FICHA_AZUL]: "Número de fichas azul",
+    [K_FICHA_VERDE]: "Número de fichas verdes",
+    [K_FICHA_AMARELA]: "Número de fichas amarelas",
+    [K_FICHA_LARANJA]: "Número de fichas laranja",
+    [K_LAB]: "Número de laboratoriais",
+    [K_RX]: "Número de RX",
+    [K_TOMO]: "Tomografias",
+    [K_USG]: "USG",
+    [K_MED_EV]: "Medicação prescritas EV",
+    [K_MED_IM]: "Medicação prescritas IM",
+    [K_MED_SUBCUT]: "Medicação Subcultanea",
+    [K_MED_VO]: "Medicação VO ou Subligual",
+    [K_MED_INAL]: "INALATORIA",
+    [K_MED_OFTAL]: "OFTALMICA"
+};
 
         // --- CHAVES E ORDEM PARA EXIBIÇÃO NA TABELA DE DETALHES ---
         // (IDÊNTICO AO SEU ORIGINAL)
@@ -396,7 +390,7 @@
         /**
          * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
          */
-    async function initDashboard() {
+async function initDashboard() {
     document.getElementById('loadingMessage').style.display = 'block';
 
     try {
@@ -408,108 +402,100 @@
             let data = doc.data();
             const newRow = {};
             
-            // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined e FORMATANDO DATA
+            // Função auxiliar para pegar o valor do Firebase e formatar
             const safeGet = (fieldName, isNumber = false) => {
                 let value = data[fieldName];
                 
-                // --- TRATAMENTO ESPECIAL DE DATA ---
-                // Se for "Data do plantao:", tentamos converter para AAAA-MM-DD
-                if (fieldName === "Data do plantao:") {
-                    // Caso 1: Se for um objeto Timestamp do Firebase
+                // --- TRATAMENTO DE DATA (Baseado no nome exato do CSV) ---
+                if (fieldName === "Data do plantão:  ") {
+                    // Se for Timestamp do Firebase
                     if (value && typeof value.toDate === 'function') {
                         return value.toDate().toISOString().substring(0, 10);
                     }
-                    // Caso 2: Se for uma string no formato brasileiro "DD/MM/AAAA"
+                    // Se for string brasileira DD/MM/AAAA
                     if (typeof value === 'string' && value.includes('/')) {
                         const partes = value.split('/');
                         if (partes.length === 3) {
-                            // Inverte para AAAA-MM-DD
                             return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
                         }
                     }
-                    // Caso 3: Se já for uma string "AAAA-MM-DD"
+                    // Se for string AAAA-MM-DD
                     if (typeof value === 'string' && value.includes('-')) {
                         return value.substring(0, 10);
                     }
                 }
 
-                // Lógica padrão para números
                 if (isNumber) {
                     return (Number(value) || 0); 
                 }
                 
-                // Retorno padrão para strings
                 return (value !== undefined && value !== null) ? String(value).trim() : '';
             };
 
-            // Mapeando as colunas conforme seu banco de dados
-            // NOTA: Mantive os nomes com os erros de digitação para bater com o seu Firebase
-            newRow[K_DATA] = safeGet("Data do plantao:");
-            newRow[K_MEDICO] = safeGet("Nome do medico (nome completo,  maiusculo) :");
-            newRow[K_CLIENTE] = safeGet("Cliente");
-            newRow[K_UNIDADE] = safeGet("Unidade");
+            // Mapeando TODAS as colunas baseadas no seu arquivo CSV real
+            // Nota: Os nomes abaixo agora conferem com "Produtividade.csv"
+            newRow[K_DATA] = safeGet("Data do plantão:  ");
             newRow[K_TURNO] = safeGet("Diurno ou noturno:");
-            newRow[K_DIA_SEMANA] = safeGet("Dia da sema:");
+            newRow[K_DIA_SEMANA] = safeGet("Dia da semana:");
+            newRow[K_MEDICO] = safeGet("Nome do médico ");
 
             // CHAVES DE PRODUTIVIDADE
-            newRow[K_ATEND_NOVO] = safeGet("Numero de Novos atendimentos:", true); 
-            newRow[K_REAVALIACOES] = safeGet("Numero Reavalicões", true);
+            newRow[K_ATEND_NOVO] = safeGet("Número de Novos atendimentos:", true); 
+            newRow[K_REAVALIACOES] = safeGet("Número Reavalições", true);
             newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
-            newRow[K_ATEND_TOTAL] = safeGet("Total de atendimento novos atendimentos e reavalicões:", true); 
 
             // CHAVES DE FICHAS DE RISCO
-            newRow[K_FICHA_VERDE] = safeGet("Numero de fichas verdes", true);
-            newRow[K_FICHA_AMARELA] = safeGet("Numero de fichas amarelas", true);
-            newRow[K_FICHA_LARANJA] = safeGet("Numero de fichas laranja", true);
-            newRow[K_FICHA_AZUL] = safeGet("Numero de fichas azul", true);
-            newRow[K_FICHA_BRANCA] = safeGet("Numero de fichas brancas", true);
+            newRow[K_FICHA_VERDE] = safeGet("Número de fichas verdes", true);
+            newRow[K_FICHA_AMARELA] = safeGet("Número de fichas amarelas", true);
+            newRow[K_FICHA_LARANJA] = safeGet("Número de fichas laranja", true);
+            newRow[K_FICHA_AZUL] = safeGet("Número de fichas azul", true);
+            newRow[K_FICHA_BRANCA] = safeGet("Número de fichas brancas", true);
 
             // CHAVES DE EXAMES
-            newRow[K_ECHO] = safeGet("Numero de ecocardiograma", true);
-            newRow[K_ELETRO] = safeGet("Numero de eletrocardiograma", true);
-            newRow[K_LAB] = safeGet("Numero de laboratoriais", true);
-            newRow[K_RX] = safeGet("Numero de RX", true);
+            newRow[K_ECHO] = safeGet("Número de ecocardiograma", true);
+            newRow[K_ELETRO] = safeGet("Número de eletrocardiograma", true);
+            newRow[K_LAB] = safeGet("Número de laboratoriais", true);
+            newRow[K_RX] = safeGet("Número de RX", true);
             newRow[K_TOMO] = safeGet("Tomografias", true);
             newRow[K_USG] = safeGet("USG", true);
 
             // CHAVES DE MEDICAÇÕES
-            newRow[K_MED_EV] = safeGet("Medicacao prescritas EV", true);
-            newRow[K_MED_IM] = safeGet("Medicacao prescritas IM", true);
-            newRow[K_MED_SUBCUT] = safeGet("Medicacao Subcultanea", true); 
-            newRow[K_MED_VO] = safeGet("Medicacao VO ou Subligual", true); 
-            newRow[K_MED_OFTAL] = safeGet("Medicacao OFTALMICA", true);
-            newRow[K_MED_INAL] = safeGet("ILAcaO", true); 
+            newRow[K_MED_EV] = safeGet("Medicação prescritas EV", true);
+            newRow[K_MED_IM] = safeGet("Medicação prescritas IM", true);
+            newRow[K_MED_SUBCUT] = safeGet("Medicação Subcultanea", true); 
+            newRow[K_MED_VO] = safeGet("Medicação VO ou Subligual", true); 
+            newRow[K_MED_INAL] = safeGet("INALATORIA", true);
+            newRow[K_MED_OFTAL] = safeGet("OFTALMICA", true);
             
             return newRow;
         })
-        .filter(row => row[K_MEDICO] !== ''); // Filtra registros vazios
+        .filter(row => row[K_MEDICO] !== ''); 
 
         // 3. Verifica e Renderiza
         if (allData.length > 0) {
-            populateClienteFilter(allData); 
-            populateUnidadeFilter(allData); 
-            populateMedicoFilter(allData);
-            populateTurnoFilter(allData); 
+            // Como seu CSV não tem 'Cliente' e 'Unidade', vamos popular apenas o que existe
+            if (typeof populateMedicoFilter === 'function') populateMedicoFilter(allData);
+            if (typeof populateTurnoFilter === 'function') populateTurnoFilter(allData); 
+            
             updateDashboard();
 
-            // Configuração dos botões
             document.getElementById('applyFiltersBtn').onclick = updateDashboard;
             document.getElementById('clearFiltersBtn').onclick = clearFilters;
             
-            // Habilita os campos
-            const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroCliente', 'filtroUnidade', 'filtroData', 'filtroTurno', 'filtroMedico'];
+            // Habilita os controles que existem no seu HTML
+            const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroData', 'filtroTurno', 'filtroMedico'];
             controls.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.disabled = false;
             });
 
         } else {
-            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado.</span>`;
+            document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado no Firestore.</span>`;
             renderDetailedTable([]); 
         }
     } catch (error) {
         console.error("Erro ao carregar dados do Firebase:", error);
-        document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão.</span>`;
+        document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão com o Firebase.</span>`;
     } finally {
         document.getElementById('loadingMessage').style.display = 'none';
     }
