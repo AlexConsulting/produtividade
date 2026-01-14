@@ -393,8 +393,8 @@
         // -----------------------------------------------------------
 
 
-  /**
-         * @description Carrega os dados do Firebase Firestore. (VERSÃO COMPLETA E CORRIGIDA)
+        /**
+         * @description Carrega os dados do Firebase Firestore. (NOVA FUNÇÃO)
          */
         async function initDashboard() {
             document.getElementById('loadingMessage').style.display = 'block';
@@ -410,73 +410,65 @@
                     // Mapeamento MANUAL dos campos do Firebase para as chaves internas (K_*)
                     const newRow = {};
                     
-                    // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined e formatos de DATA
+                    // Função auxiliar para pegar o valor do Firebase, tratando nulo/undefined
                     const safeGet = (fieldName, isNumber = false) => {
                         let value = data[fieldName];
                         
-                        // CORREÇÃO CRÍTICA PARA DATA: Garante formato YYYY-MM-DD para o filtro funcionar
-                        if (fieldName === "Data do plantão:" || fieldName === "data") {
-                            if (!value) return "";
-                            // Se for Timestamp do Firebase
-                            if (value.toDate) {
-                                return value.toDate().toISOString().substring(0, 10);
-                            }
-                            // Se for String (como vindo da planilha CSV), padroniza para YYYY-MM-DD
-                            // Remove espaços e pega os primeiros 10 caracteres
-                            return String(value).trim().substring(0, 10);
+                        // Tratamento de Timestamp do Firebase
+                        if (value && value.toDate) {
+                             // Converte o Firebase Timestamp para data formatada (ISO)
+                             const dateObj = value.toDate();
+                             // Retorna a data no formato YYYY-MM-DD
+                             return dateObj.toISOString().substring(0, 10);
                         }
                         
                         // Lógica de conversão para número
                         if (isNumber) {
-                            // Se for "NA", vazio ou não numérico, vira 0
-                            let num = Number(value);
-                            return isNaN(num) ? 0 : num;
+                            // Converte a string para número (se for o caso)
+                            return (Number(value) || 0); 
                         }
-                        
                         // Retorna o valor como string, removendo espaços
-                        return (value !== undefined && value !== null) ? String(value).trim() : "";
+                        return (value || '').trim();
                     };
 
                     // Mapeando TODAS as colunas do seu formulário (Firestore) para as chaves internas (K_*)
                     
                     // CHAVES DE USO GERAL/FILTRO
-                    // Note que usamos o nome exato que está no seu CSV importado
-                    newRow[K_DATA] = safeGet("data"); 
-                    newRow[K_MEDICO] = safeGet("medico");
+                    newRow[K_DATA] = safeGet("Data do plantao:");
+                    newRow[K_MEDICO] = safeGet("Nome do medico (nome completo,  maiusculo) :");
                     newRow[K_CLIENTE] = safeGet("Cliente");
                     newRow[K_UNIDADE] = safeGet("Unidade");
-                    newRow[K_TURNO] = safeGet("turno");
+                    newRow[K_TURNO] = safeGet("Diurno ou noturno:");
                     newRow[K_DIA_SEMANA] = safeGet("Dia da sema:");
 
                     // CHAVES DE PRODUTIVIDADE
-                    newRow[K_ATEND_NOVO] = safeGet("novosAtendimentos", true); 
-                    newRow[K_REAVALIACOES] = safeGet("reavaliacoes", true);
+                    newRow[K_ATEND_NOVO] = safeGet("Numero de Novos atendimentos:", true); 
+                    newRow[K_REAVALIACOES] = safeGet("Numero Reavalicões", true);
                     newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES]; 
-                    newRow[K_ATEND_TOTAL] = safeGet("totalGeral", true); 
+                    newRow[K_ATEND_TOTAL] = safeGet("Total de atendimento novos atendimentos e reavalicões:", true); 
 
                     // CHAVES DE FICHAS DE RISCO
-                    newRow[K_FICHA_VERDE] = safeGet("fichaVerde", true);
-                    newRow[K_FICHA_AMARELA] = safeGet("fichaAmarela", true);
-                    newRow[K_FICHA_LARANJA] = safeGet("fichaLaranja", true);
-                    newRow[K_FICHA_AZUL] = safeGet("fichaAzul", true);
-                    newRow[K_FICHA_BRANCA] = safeGet("fichaBranca", true);
-                    newRow[K_FICHA_VERMELHA] = safeGet("fichaVermelha", true);
+                    newRow[K_FICHA_VERDE] = safeGet("Numero de fichas verdes", true);
+                    newRow[K_FICHA_AMARELA] = safeGet("Numero de fichas amarelas", true);
+                    newRow[K_FICHA_LARANJA] = safeGet("Numero de fichas laranja", true);
+                    newRow[K_FICHA_AZUL] = safeGet("Numero de fichas azul", true);
+                    newRow[K_FICHA_BRANCA] = safeGet("Numero de fichas brancas", true);
 
                     // CHAVES DE EXAMES
-                    newRow[K_ECHO] = safeGet("Número de ecocardiograma", true);
-                    newRow[K_ELETRO] = safeGet("Número de eletrocardiograma", true);
-                    newRow[K_LAB] = safeGet("Número de laboratoriais", true);
-                    newRow[K_RX] = safeGet("Número de RX", true);
+                    newRow[K_ECHO] = safeGet("Numero de ecocardiograma", true);
+                    newRow[K_ELETRO] = safeGet("Numero de eletrocardiograma", true);
+                    newRow[K_LAB] = safeGet("Numero de laboratoriais", true);
+                    newRow[K_RX] = safeGet("Numero de RX", true);
                     newRow[K_TOMO] = safeGet("Tomografias", true);
                     newRow[K_USG] = safeGet("USG", true);
 
                     // CHAVES DE MEDICAÇÕES
-                    newRow[K_MED_EV] = safeGet("Medicação prescritas EV", true);
-                    newRow[K_MED_IM] = safeGet("Medicação prescritas IM", true);
-                    newRow[K_MED_SUBCUT] = safeGet("Medicação Subcultanea", true); 
-                    newRow[K_MED_VO] = safeGet("Medicação VO ou Subligual", true); 
-                    newRow[K_MED_OFTAL] = safeGet("Medicação OFTALMICA", true);
-                    newRow[K_MED_INAL] = safeGet("INALAÇÃO", true); 
+                    newRow[K_MED_EV] = safeGet("Medicacao prescritas EV", true);
+                    newRow[K_MED_IM] = safeGet("Medicacao prescritas IM", true);
+                    newRow[K_MED_SUBCUT] = safeGet("Medicacao Subcultanea", true); 
+                    newRow[K_MED_VO] = safeGet("Medicacao VO ou Subligual", true); 
+                    newRow[K_MED_OFTAL] = safeGet("Medicacao OFTALMICA", true);
+                    newRow[K_MED_INAL] = safeGet("ILAcaO", true); 
                     
                     return newRow;
                 })
@@ -489,8 +481,6 @@
                     populateUnidadeFilter(allData); 
                     populateMedicoFilter(allData);
                     populateTurnoFilter(allData); 
-                    
-                    // IMPORTANTE: Atualiza o Dashboard pela primeira vez
                     updateDashboard();
 
                     document.getElementById('applyFiltersBtn').onclick = updateDashboard;
@@ -504,12 +494,29 @@
                     document.getElementById('filtroTurno').disabled = false; 
 
                 } else {
+                     // Caso não haja dados no Firebase
                     document.getElementById('data-source-label').innerHTML = `AVISO: <span style="color:orange;">Nenhum dado encontrado na coleção 'produtividade'.</span>`;
+                    
+                    document.getElementById('filtroCliente').disabled = true; 
+                    document.getElementById('filtroUnidade').disabled = true; 
+                    document.getElementById('filtroMedico').disabled = true;
+                    document.getElementById('filtroData').disabled = true;
+                    document.getElementById('filtroTurno').disabled = true;
+                    
+                    document.getElementById('applyFiltersBtn').disabled = true;
+                    document.getElementById('clearFiltersBtn').disabled = true;
+                    
                     renderDetailedTable([]); 
                 }
             } catch (error) {
                 console.error("Erro ao carregar dados do Firebase:", error);
+                
+                let errorMessage = "Verifique sua conexão e, CRITICAMENTE, as **Regras de Leitura** no Console do Firebase Firestore.";
                 document.getElementById('data-source-label').innerHTML = `ERRO CRÍTICO: <span style="color:red;">Falha na conexão com o Firebase.</span>`;
+                document.getElementById('dbFileName').value = errorMessage;
+                document.getElementById('dbFileName').style.color = 'red';
+                document.getElementById('totalAtendimentos').textContent = "ERRO";
+                document.getElementById('totalAtendimentosMedico').textContent = "---";
             } finally {
                 document.getElementById('loadingMessage').style.display = 'none';
             }
