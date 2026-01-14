@@ -259,6 +259,8 @@
         const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
         
         let allData = [];
+        
+        // Instâncias dos Gráficos (Essencial para não sobrepor dados ao filtrar)
         let examesPorMedicoChartInstance;
         let medicacoesPorMedicoChartInstance;
         let produtividadePorMedicoChartInstance;
@@ -277,7 +279,7 @@
             laranja: 'rgba(253, 126, 20, 0.7)'
         };
 
-        // CONSTANTES DOS NOMES DOS CAMPOS (EXATAMENTE COMO NO BANCO/CSV)
+        // MAPEAMENTO DE TODOS OS CAMPOS DO BANCO DE DADOS
         const K_CLIENTE = "Cliente";
         const K_DATA = "Data do plantão:  ";
         const K_DIA_SEMANA = "Dia da semana:";
@@ -305,6 +307,7 @@
         const K_USG = "USG";
         const K_UNIDADE = "Unidade";
 
+        // Função de Tratamento de Dados (Garante que nulos virem 0 ou string vazia)
         function safeGet(data, key, isNumber = false) {
             const val = data[key];
             if (isNumber) {
@@ -315,6 +318,7 @@
             return val !== undefined && val !== null ? String(val).trim() : '';
         }
 
+        // --- CARREGAMENTO INICIAL ---
         async function initDashboard() {
             toggleLoading(true);
             try {
@@ -356,12 +360,13 @@
                 enableFilters();
             } catch (error) {
                 console.error("Erro ao buscar dados: ", error);
-                alert("Erro ao carregar dados do banco de dados.");
+                alert("Erro ao conectar com o banco.");
             } finally {
                 toggleLoading(false);
             }
         }
 
+        // --- FILTROS ---
         function populateFilters(data) {
             const clientes = [...new Set(data.map(item => item[K_CLIENTE]))].sort();
             const unidades = [...new Set(data.map(item => item[K_UNIDADE]))].sort();
@@ -374,8 +379,7 @@
                 list.forEach(val => {
                     if (val) {
                         const opt = document.createElement('option');
-                        opt.value = val;
-                        opt.textContent = val;
+                        opt.value = val; opt.textContent = val;
                         select.appendChild(opt);
                     }
                 });
@@ -390,193 +394,196 @@
         function filterData(data) {
             const cliente = document.getElementById('filtroCliente').value;
             const unidade = document.getElementById('filtroUnidade').value;
-            const medicosSelecionados = Array.from(document.getElementById('filtroMedico').selectedOptions).map(option => option.value);
+            const medsSel = Array.from(document.getElementById('filtroMedico').selectedOptions).map(o => o.value);
             const turno = document.getElementById('filtroTurno').value;
-            const dataFiltro = document.getElementById('filtroData').value;
+            const dataF = document.getElementById('filtroData').value;
 
             return data.filter(item => {
-                const matchCliente = cliente === 'todos' || item[K_CLIENTE] === cliente;
-                const matchUnidade = unidade === 'todos' || item[K_UNIDADE] === unidade;
-                const matchMedico = medicosSelecionados.length === 0 || medicosSelecionados.includes(item[K_MEDICO]);
-                const matchTurno = turno === 'todos' || item[K_TURNO] === turno;
-                const matchData = !dataFiltro || item[K_DATA] >= dataFiltro;
-
-                return matchCliente && matchUnidade && matchMedico && matchTurno && matchData;
+                return (cliente === 'todos' || item[K_CLIENTE] === cliente) &&
+                       (unidade === 'todos' || item[K_UNIDADE] === unidade) &&
+                       (medsSel.length === 0 || medsSel.includes(item[K_MEDICO])) &&
+                       (turno === 'todos' || item[K_TURNO] === turno) &&
+                       (!dataF || item[K_DATA] >= dataF);
             });
         }
 
+        // --- KPIs ---
         function generateKPIs(data) {
-            const totalNovosAtendimentos = data.reduce((sum, item) => sum + item[K_ATEND_NOVO], 0);
-            const totalReavaliacoes = data.reduce((sum, item) => sum + item[K_REAVALIACOES], 0);
-            const somaGeral = totalNovosAtendimentos + totalReavaliacoes;
-
-            const diurno = data.filter(item => item[K_TURNO].toLowerCase().includes('diurno')).reduce((sum, item) => sum + item[K_ATEND_NOVO], 0);
-            const intermediario = data.filter(item => item[K_TURNO].toLowerCase().includes('intermediario')).reduce((sum, item) => sum + item[K_ATEND_NOVO], 0);
-            const noturno = data.filter(item => item[K_TURNO].toLowerCase().includes('noturno')).reduce((sum, item) => sum + item[K_ATEND_NOVO], 0);
-
-            document.getElementById('totalAtendimentosMedico').textContent = totalNovosAtendimentos.toLocaleString();
-            document.getElementById('totalEV').textContent = totalReavaliacoes.toLocaleString();
-            document.getElementById('totalAtendimentos').textContent = somaGeral.toLocaleString();
+            const n = data.reduce((s, i) => s + i[K_ATEND_NOVO], 0);
+            const r = data.reduce((s, i) => s + i[K_REAVALIACOES], 0);
             
-            document.getElementById('kpiDiurno').textContent = diurno.toLocaleString();
-            document.getElementById('kpiIntermediario').textContent = intermediario.toLocaleString();
-            document.getElementById('kpiNoturno').textContent = noturno.toLocaleString();
+            document.getElementById('totalAtendimentosMedico').textContent = n.toLocaleString();
+            document.getElementById('totalEV').textContent = r.toLocaleString();
+            document.getElementById('totalAtendimentos').textContent = (n + r).toLocaleString();
+
+            const turnoSum = (t) => data.filter(i => i[K_TURNO].toLowerCase().includes(t)).reduce((s, i) => s + i[K_ATEND_NOVO], 0);
+            document.getElementById('kpiDiurno').textContent = turnoSum('diurno').toLocaleString();
+            document.getElementById('kpiIntermediario').textContent = turnoSum('intermediario').toLocaleString();
+            document.getElementById('kpiNoturno').textContent = turnoSum('noturno').toLocaleString();
         }
 
+        // --- GRÁFICOS (DETALHADOS) ---
         function createCharts(data) {
-            if (produtividadePorMedicoChartInstance) produtividadePorMedicoChartInstance.destroy();
-            if (atendimentosDiaSemanaChartInstance) atendimentosDiaSemanaChartInstance.destroy();
-            if (examesPorMedicoChartInstance) examesPorMedicoChartInstance.destroy();
-            if (medicacoesPorMedicoChartInstance) medicacoesPorMedicoChartInstance.destroy();
-            if (fichasClassificacaoChartInstance) fichasClassificacaoChartInstance.destroy();
-            if (medicacoesChartInstance) medicacoesChartInstance.destroy();
-
-            // 1. Produtividade por Médico (Atend. Novos + Reavaliações)
-            const medicosLabels = [...new Set(data.map(item => item[K_MEDICO]))];
-            const medicosData = medicosLabels.map(medico => {
-                const medicoRecords = data.filter(item => item[K_MEDICO] === medico);
-                return medicoRecords.reduce((sum, item) => sum + item[K_ATEND_NOVO] + item[K_REAVALIACOES], 0);
+            // Destruição rigorosa das instâncias anteriores
+            [produtividadePorMedicoChartInstance, atendimentosDiaSemanaChartInstance, 
+             examesPorMedicoChartInstance, medicacoesPorMedicoChartInstance, 
+             fichasClassificacaoChartInstance, medicacoesChartInstance].forEach(chart => {
+                if (chart) chart.destroy();
             });
 
+            const medicosLabels = [...new Set(data.map(item => item[K_MEDICO]))];
+
+            // 1. Produtividade por Médico
             produtividadePorMedicoChartInstance = new Chart(document.getElementById('produtividadePorMedicoChart'), {
                 type: 'bar',
                 data: {
                     labels: medicosLabels,
-                    datasets: [{ label: 'Total Atendimentos', data: medicosData, backgroundColor: colors.primario }]
+                    datasets: [{
+                        label: 'Novos + Reavaliações',
+                        data: medicosLabels.map(m => data.filter(i => i[K_MEDICO] === m).reduce((s, i) => s + i[K_ATEND_NOVO] + i[K_REAVALIACOES], 0)),
+                        backgroundColor: colors.primario
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
             // 2. Dia da Semana
-            const diasLabels = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
-            const diasData = diasLabels.map(dia => {
-                return data.filter(item => item[K_DIA_SEMANA] === dia).reduce((sum, item) => sum + item[K_ATEND_NOVO], 0);
-            });
-
+            const dias = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
             atendimentosDiaSemanaChartInstance = new Chart(document.getElementById('atendimentosDiaSemanaChart'), {
                 type: 'line',
                 data: {
-                    labels: diasLabels,
-                    datasets: [{ label: 'Novos Atendimentos', data: diasData, borderColor: colors.sucesso, fill: false }]
+                    labels: dias,
+                    datasets: [{
+                        label: 'Novos Atendimentos',
+                        data: dias.map(d => data.filter(i => i[K_DIA_SEMANA] === d).reduce((s, i) => s + i[K_ATEND_NOVO], 0)),
+                        borderColor: colors.sucesso, tension: 0.2, fill: true, backgroundColor: 'rgba(40, 167, 69, 0.1)'
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
             // 3. Exames por Médico
-            const examesMedData = medicosLabels.map(medico => {
-                const r = data.filter(item => item[K_MEDICO] === medico);
-                return r.reduce((s, i) => s + i[K_RX] + i[K_ECHO] + i[K_ELETRO] + i[K_LABORATORIAIS] + i[K_TOMOGRAFIAS] + i[K_USG], 0);
-            });
-
             examesPorMedicoChartInstance = new Chart(document.getElementById('examesPorMedicoChart'), {
                 type: 'bar',
                 data: {
                     labels: medicosLabels,
-                    datasets: [{ label: 'Total Exames', data: examesMedData, backgroundColor: colors.roxo }]
+                    datasets: [{
+                        label: 'Total Exames',
+                        data: medicosLabels.map(m => {
+                            const r = data.filter(i => i[K_MEDICO] === m);
+                            return r.reduce((s, i) => s + i[K_RX] + i[K_ECHO] + i[K_ELETRO] + i[K_LABORATORIAIS] + i[K_TOMOGRAFIAS] + i[K_USG], 0);
+                        }),
+                        backgroundColor: colors.roxo
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
             // 4. Medicações por Médico
-            const medMedData = medicosLabels.map(medico => {
-                const r = data.filter(item => item[K_MEDICO] === medico);
-                return r.reduce((s, i) => s + i[K_MED_EV] + i[K_MED_IM] + i[K_MED_SC] + i[K_MED_VO] + i[K_INALATORIA] + i[K_OFTALMICA] + i[K_RETAL], 0);
-            });
-
             medicacoesPorMedicoChartInstance = new Chart(document.getElementById('medicacoesPorMedicoChart'), {
                 type: 'bar',
                 data: {
                     labels: medicosLabels,
-                    datasets: [{ label: 'Total Medicações', data: medMedData, backgroundColor: colors.laranja }]
+                    datasets: [{
+                        label: 'Total Medicações',
+                        data: medicosLabels.map(m => {
+                            const r = data.filter(i => i[K_MEDICO] === m);
+                            return r.reduce((s, i) => s + i[K_MED_EV] + i[K_MED_IM] + i[K_MED_SC] + i[K_MED_VO] + i[K_INALATORIA] + i[K_OFTALMICA] + i[K_RETAL], 0);
+                        }),
+                        backgroundColor: colors.laranja
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 5. Fichas Classificação
-            const fichasLabels = ['Branca', 'Azul', 'Verde', 'Amarela', 'Laranja'];
-            const fichasData = [
-                data.reduce((s, i) => s + i[K_F_BRANCA], 0),
-                data.reduce((s, i) => s + i[K_F_AZUL], 0),
-                data.reduce((s, i) => s + i[K_F_VERDE], 0),
-                data.reduce((s, i) => s + i[K_F_AMARELA], 0),
-                data.reduce((s, i) => s + i[K_F_LARANJA], 0)
-            ];
-
+            // 5. Pizza Fichas
             fichasClassificacaoChartInstance = new Chart(document.getElementById('fichasClassificacaoChart'), {
                 type: 'pie',
                 data: {
-                    labels: fichasLabels,
-                    datasets: [{ data: fichasData, backgroundColor: ['#eee', '#007bff', '#28a745', '#ffc107', '#fd7e14'] }]
+                    labels: ['Branca', 'Azul', 'Verde', 'Amarela', 'Laranja'],
+                    datasets: [{
+                        data: [
+                            data.reduce((s, i) => s + i[K_F_BRANCA], 0),
+                            data.reduce((s, i) => s + i[K_F_AZUL], 0),
+                            data.reduce((s, i) => s + i[K_F_VERDE], 0),
+                            data.reduce((s, i) => s + i[K_F_AMARELA], 0),
+                            data.reduce((s, i) => s + i[K_F_LARANJA], 0)
+                        ],
+                        backgroundColor: ['#eee', '#007bff', '#28a745', '#ffc107', '#fd7e14']
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
             // 6. Medicações Geral
-            const medsLabels = ['EV', 'IM', 'SC', 'VO', 'Inalatória', 'Outras'];
-            const medsData = [
-                data.reduce((s, i) => s + i[K_MED_EV], 0),
-                data.reduce((s, i) => s + i[K_MED_IM], 0),
-                data.reduce((s, i) => s + i[K_MED_SC], 0),
-                data.reduce((s, i) => s + i[K_MED_VO], 0),
-                data.reduce((s, i) => s + i[K_INALATORIA], 0),
-                data.reduce((s, i) => s + i[K_OFTALMICA] + i[K_RETAL], 0)
-            ];
-
             medicacoesChartInstance = new Chart(document.getElementById('medicacoesChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: medsLabels,
-                    datasets: [{ data: medsData, backgroundColor: [colors.perigo, colors.laranja, colors.alerta, colors.sucesso, colors.info, colors.secundario] }]
+                    labels: ['EV', 'IM', 'SC', 'VO', 'Inalatória', 'Outros'],
+                    datasets: [{
+                        data: [
+                            data.reduce((s, i) => s + i[K_MED_EV], 0),
+                            data.reduce((s, i) => s + i[K_MED_IM], 0),
+                            data.reduce((s, i) => s + i[K_MED_SC], 0),
+                            data.reduce((s, i) => s + i[K_MED_VO], 0),
+                            data.reduce((s, i) => s + i[K_INALATORIA], 0),
+                            data.reduce((s, i) => s + i[K_OFTALMICA] + i[K_RETAL], 0)
+                        ],
+                        backgroundColor: [colors.perigo, colors.laranja, colors.alerta, colors.sucesso, colors.info, colors.secundario]
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
+        // --- TABELA ---
         function renderDetailedTable(data) {
             const container = document.getElementById('detailedTableContainer');
             if (data.length === 0) {
-                container.innerHTML = '<p class="text-center text-muted p-4 mb-0">Nenhum dado encontrado para os filtros selecionados.</p>';
+                container.innerHTML = '<p class="text-center p-4">Sem dados para os filtros.</p>';
                 return;
             }
 
-            const columns = [K_DATA, K_MEDICO, K_UNIDADE, K_TURNO, K_ATEND_NOVO, K_REAVALIACOES];
-            let tableHTML = `<table class="table table-striped table-hover table-sm"><thead><tr>`;
-            columns.forEach(col => tableHTML += `<th>${col}</th>`);
-            tableHTML += `</tr></thead><tbody>`;
+            let html = `<table class="table table-striped table-hover table-sm"><thead><tr>
+                <th>Data</th><th>Médico</th><th>Unidade</th><th>Turno</th><th>Novos</th><th>Reaval.</th><th>Exames</th><th>Meds</th>
+            </tr></thead><tbody>`;
 
             data.forEach(row => {
-                tableHTML += `<tr>`;
-                columns.forEach(col => {
-                    let val = row[col];
-                    if (col === K_DATA && val) {
-                        const parts = val.split('-');
-                        if (parts.length === 3) val = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                    }
-                    tableHTML += `<td>${val || '-'}</td>`;
-                });
-                tableHTML += `</tr>`;
+                const totalEx = row[K_RX] + row[K_ECHO] + row[K_ELETRO] + row[K_LABORATORIAIS] + row[K_TOMOGRAFIAS] + row[K_USG];
+                const totalMed = row[K_MED_EV] + row[K_MED_IM] + row[K_MED_SC] + row[K_MED_VO] + row[K_INALATORIA] + row[K_OFTALMICA] + row[K_RETAL];
+                
+                let dt = row[K_DATA];
+                if(dt.includes('-')) { const p = dt.split('-'); dt = `${p[2]}/${p[1]}/${p[0]}`; }
+
+                html += `<tr>
+                    <td>${dt}</td>
+                    <td>${row[K_MEDICO]}</td>
+                    <td>${row[K_UNIDADE]}</td>
+                    <td>${row[K_TURNO]}</td>
+                    <td class="text-center">${row[K_ATEND_NOVO]}</td>
+                    <td class="text-center">${row[K_REAVALIACOES]}</td>
+                    <td class="text-center">${totalEx}</td>
+                    <td class="text-center">${totalMed}</td>
+                </tr>`;
             });
-            tableHTML += `</tbody></table>`;
-            container.innerHTML = tableHTML;
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
 
+        // --- AUXILIARES E EVENTOS ---
         function updateDashboard() {
             const filtered = filterData(allData);
             const alertEl = document.getElementById('filterAlert');
             if (filtered.length === 0) {
                 alertEl.style.display = 'block';
-                generateKPIs([]);
-                createCharts([]);
-                renderDetailedTable([]);
+                generateKPIs([]); createCharts([]); renderDetailedTable([]);
             } else {
                 alertEl.style.display = 'none';
-                generateKPIs(filtered);
-                createCharts(filtered);
-                renderDetailedTable(filtered);
+                generateKPIs(filtered); createCharts(filtered); renderDetailedTable(filtered);
             }
         }
 
-        function toggleLoading(show) { document.getElementById('loadingMessage').style.display = show ? 'block' : 'none'; }
+        function toggleLoading(s) { document.getElementById('loadingMessage').style.display = s ? 'block' : 'none'; }
         function enableFilters() {
             ['filtroCliente', 'filtroUnidade', 'filtroMedico', 'filtroTurno', 'filtroData', 'applyFiltersBtn', 'clearFiltersBtn'].forEach(id => {
                 document.getElementById(id).disabled = false;
@@ -593,6 +600,7 @@
             updateDashboard();
         };
 
+        // Início
         initDashboard();
     </script>
 
