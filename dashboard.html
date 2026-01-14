@@ -94,45 +94,44 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-6 col-lg-3">
                     <label for="filtroCliente" class="form-label fw-bold">1. Filtrar por Cliente:</label>
-                    <select class="form-select" id="filtroCliente" disabled>
-                        <option value="todos">Carregando...</option>
+                    <select class="form-select" id="filtroCliente">
+                        <option value="todos">Todos</option>
                     </select>
                 </div>
                 
                 <div class="col-md-6 col-lg-3">
                     <label for="filtroUnidade" class="form-label fw-bold">2. Filtrar por Unidade:</label>
-                    <select class="form-select" id="filtroUnidade" disabled>
-                        <option value="todos">Carregando...</option>
+                    <select class="form-select" id="filtroUnidade">
+                        <option value="todos">Todos</option>
                     </select>
                 </div>
 
                 <div class="col-md-12 col-lg-6">
                     <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico (Use Ctrl/Cmd para múltiplos):</label>
-                    <select class="form-select" id="filtroMedico" multiple size="5" disabled>
-                        <option value="todos">Carregando...</option>
-                    </select>
+                    <select class="form-select" id="filtroMedico" multiple size="5">
+                        </select>
                 </div>
             </div>
             
             <div class="row g-3">
                 <div class="col-md-4">
                     <label for="filtroTurno" class="form-label fw-bold">4. Filtrar por Turno:</label>
-                    <select class="form-select" id="filtroTurno" disabled>
-                        <option value="todos">Carregando...</option>
+                    <select class="form-select" id="filtroTurno">
+                        <option value="todos">Todos</option>
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="filtroData" class="form-label fw-bold">5. Filtrar por Data (A partir de):</label>
-                    <input type="date" class="form-control" id="filtroData" disabled>
+                    <label for="dataFiltro" class="form-label fw-bold">5. Filtrar por Data (A partir de):</label>
+                    <input type="date" class="form-control" id="dataFiltro">
                 </div>
             </div>
             
             <div class="row mt-3">
                 <div class="col-md-6">
-                    <button class="btn btn-primary w-100" id="applyFiltersBtn" disabled>Aplicar Filtros</button>
+                    <button class="btn btn-primary w-100" id="applyFiltersBtn">Aplicar Filtros</button>
                 </div>
                 <div class="col-md-6">
-                    <button class="btn btn-secondary w-100" id="clearFiltersBtn" disabled>Limpar Filtros</button>
+                    <button class="btn btn-secondary w-100" id="clearFiltersBtn">Limpar Filtros</button>
                 </div>
             </div>
             <div class="row g-3 mt-3">
@@ -160,7 +159,7 @@
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #0d6efd !important;">
                         <h5 class="card-title text-muted">Atend. + Reavaliações</h5>
-                        <p class="card-text fs-3 fw-bold text-primary" id="totalAtendimentos">0</p>
+                        <p class="card-text fs-3 fw-bold text-primary" id="totalGeralCompleto">0</p>
                     </div>
                 </div>
             </div>
@@ -462,8 +461,8 @@
             if (allData.length > 0) {
                 populateMedicoFilter(allData);
                 populateTurnoFilter(allData);
-                populateClienteFilter(allData);
-                populateUnidadeFilter(allData);
+                populateClienteFilter(allData); // ADICIONE ESTA LINHA
+				populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
                 updateDashboard();
 
                 const applyBtn = document.getElementById('applyFiltersBtn');
