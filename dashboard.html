@@ -107,7 +107,7 @@
                 </div>
 
                 <div class="col-md-12 col-lg-6">
-                    <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico (Use Ctrl/Cmd para múltiplos):</label>
+                    <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico:</label>
                     <select class="form-select" id="filtroMedico" multiple size="5">
                         </select>
                 </div>
@@ -121,8 +121,8 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="dataFiltro" class="form-label fw-bold">5. Filtrar por Data (A partir de):</label>
-                    <input type="date" class="form-control" id="dataFiltro">
+                    <label for="filtroData" class="form-label fw-bold">5. Filtrar por Data (A partir de):</label>
+                    <input type="date" class="form-control" id="filtroData">
                 </div>
             </div>
             
@@ -132,12 +132,6 @@
                 </div>
                 <div class="col-md-6">
                     <button class="btn btn-secondary w-100" id="clearFiltersBtn">Limpar Filtros</button>
-                </div>
-            </div>
-            <div class="row g-3 mt-3">
-                <div class="col-md-12">
-                    <label for="dbFileName" class="form-label fw-bold" id="data-source-label">FONTE DE DADOS:</label>
-                    <input class="form-control" type="text" id="dbFileName" value="Coleção: produtividade" readonly style="color:#007bff;">
                 </div>
             </div>
         </section>
@@ -159,7 +153,7 @@
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card kpi-card p-3 shadow-sm" style="border-left-color: #0d6efd !important;">
                         <h5 class="card-title text-muted">Atend. + Reavaliações</h5>
-                        <p class="card-text fs-3 fw-bold text-primary" id="totalGeralCompleto">0</p>
+                        <p class="card-text fs-3 fw-bold text-primary" id="totalAtendimentos">0</p>
                     </div>
                 </div>
             </div>
@@ -191,7 +185,7 @@
             <div class="row">
                 <div class="col-lg-6 mb-4">
                     <div class="chart-container" style="height: 400px;">
-                        <h5 class="text-center mb-3">Produtividade por Médico (Atend. Totais)</h5>
+                        <h5 class="text-center mb-3">Produtividade por Médico</h5>
                         <canvas id="produtividadePorMedicoChart"></canvas>
                     </div>
                 </div>
@@ -201,44 +195,18 @@
                         <canvas id="atendimentosDiaSemanaChart"></canvas>
                     </div>
                 </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="chart-container" style="height: 400px;">
-                        <h5 class="text-center mb-3">Exames Solicitados por Médico</h5>
-                        <canvas id="examesPorMedicoChart"></canvas>
-                    </div>
                 </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="chart-container" style="height: 400px;">
-                        <h5 class="text-center mb-3">Medicações Prescritas por Médico</h5>
-                        <canvas id="medicacoesPorMedicoChart"></canvas>
-                    </div>
-                </div>
-                
-                <div class="col-12 mb-4">
-                    <div class="chart-container" style="height: 300px;">
-                        <h5 class="text-center mb-3">Fichas de Classificação de Risco (Total Geral)</h5>
-                        <canvas id="fichasClassificacaoChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="col-12 mb-4">
-                    <div class="chart-container" style="height: 300px;">
-                        <h5 class="text-center mb-3">Medicações Prescritas (Total Geral)</h5>
-                        <canvas id="medicacoesChart"></canvas>
-                    </div>
-                </div>
-            </div>
         </section>
-        
+
         <section id="detailed-data" class="mb-5">
             <div class="chart-container p-4">
-                <h4 class="mb-3" id="detailed-data-title">Detalhes da Produtividade</h4>
-                <div id="detailedTableContainer" style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd; border-radius: .3rem;">
-                    <p class="text-center text-muted p-4 mb-0">Selecione um médico ou aplique filtros para carregar os dados detalhados.</p>
-                </div>
+                <h4 class="mb-3">Detalhes da Produtividade</h4>
+                <div id="detailedTableContainer" style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd;">
+                    </div>
             </div>
         </section>
     </main>
+
     <footer class="text-center text-muted py-3">Dashboard de Produtividade</footer>
 
 <script>
