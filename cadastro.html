@@ -47,7 +47,7 @@
                 <div class="row mb-3">
                     <div class="col-md-4">
                         <label for="Data_do_plantao" class="form-label">Data do plantão:</label>
-                        <input type="date" class="form-control" name="Data do plantao" required>
+                        <input type="date" class="form-control" name="Data do plantão" required>
                     </div>
                     
                     <div class="col-md-4">
@@ -62,14 +62,14 @@
                     
                     <div class="col-md-4">
                         <label for="Dia_da_sema" class="form-label">Dia da semana:</label>
-                        <input type="text" class="form-control" name="Dia da sema" placeholder="Ex: SEGUNDA-FEIRA" required>
+                        <input type="text" class="form-control" name="Dia da semana" placeholder="Ex: SEGUNDA-FEIRA" required>
                     </div>
                 </div>
 
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <label for="Nome_do_medico" class="form-label">Nome completo do médico (MAIÚSCULO):</label>
-                        <input type="text" class="form-control" name="Nome do medico (nome completo, maiusculo)" placeholder="NOME COMPLETO, MAIÚSCULO" required>
+                        <input type="text" class="form-control" name="Nome do médico" placeholder="NOME COMPLETO, MAIÚSCULO" required>
                     </div>
                     <div class="col-md-6">
                         <label for="Consultorio" class="form-label">Consultório:</label>
@@ -94,11 +94,11 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <label for="Numero_de_Novos_atendimentos" class="form-label">Número de Novos atendimentos:</label>
-                        <input type="number" class="form-control" id="Novos_Atendimentos" name="Numero de Novos atendimentos" value="0" min="0" required>
+                        <input type="number" class="form-control" id="Novos_Atendimentos" name="Número de Novos atendimentos" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
                         <label for="Numero_Reavalicoes" class="form-label">Número de Reavaliações:</label>
-                        <input type="number" class="form-control" id="Numero_Reavalicoes" name="Numero Reavalicões" value="0" min="0" required>
+                        <input type="number" class="form-control" id="Numero_Reavalicoes" name="Número Reavaliações" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
                         <label for="Total_atendimentos_completo" class="form-label">Total de novos atendimentos e reavaliações:</label>
@@ -110,34 +110,40 @@
                 <h4 class="section-title">Classificação de Risco (Fichas):</h4>
                 
                 <div class="row mb-4">
-                    <div class="col-md-2"><label for="Ficha_verde" class="form-label">Verdes</label><input type="number" class="form-control" name="Numero de fichas verdes" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_amarela" class="form-label">Amarelas</label><input type="number" class="form-control" name="Numero de fichas amarelas" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_laranja" class="form-label">Laranjas</label><input type="number" class="form-control" name="Numero de fichas laranja" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_azul" class="form-label">Azuis</label><input type="number" class="form-control" name="Numero de fichas azul" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_branca" class="form-label">Brancas</label><input type="number" class="form-control" name="Numero de fichas brancas" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_vermelha" class="form-label">Vermelhas</label><input type="number" class="form-control" name="Numero de fichas Vermelhas" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_verde" class="form-label">Verdes</label><input type="number" class="form-control" name="Número de fichas verdes" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_amarela" class="form-label">Amarelas</label><input type="number" class="form-control" name="Número de fichas amarelas" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_laranja" class="form-label">Laranjas</label><input type="number" class="form-control" name="Número de fichas laranja" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_azul" class="form-label">Azuis</label><input type="number" class="form-control" name="Número de fichas azul" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_branca" class="form-label">Brancas</label><input type="number" class="form-control" name="Número de fichas brancas" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Ficha_vermelha" class="form-label">Vermelhas</label><input type="number" class="form-control" name="Número de fichas VERMELHO" value="0" min="0"></div>
                 </div>
 
                 <h4 class="section-title">Exames:</h4>
                 
                 <div class="row mb-4">
-                    <div class="col-md-2"><label for="ecocardiograma" class="form-label">Ecocardiograma</label><input type="number" class="form-control" name="Numero de ecocardiograma" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="eletrocardiograma" class="form-label">Eletrocardiograma</label><input type="number" class="form-control" name="Numero de eletrocardiograma" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="laboratoriais" class="form-label">Laboratoriais</label><input type="number" class="form-control" name="Numero de laboratoriais" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="RX" class="form-label">RX</label><input type="number" class="form-control" name="Numero de RX" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="ecocardiograma" class="form-label">Ecocardiograma</label><input type="number" class="form-control" name="Número de ecocardiograma" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="eletrocardiograma" class="form-label">Eletrocardiograma</label><input type="number" class="form-control" name="Número de eletrocardiograma" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="laboratoriais" class="form-label">Laboratoriais</label><input type="number" class="form-control" name="Número de laboratoriais" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="RX" class="form-label">RX</label><input type="number" class="form-control" name="Número de RX" value="0" min="0"></div>
                     <div class="col-md-2"><label for="Tomografias" class="form-label">Tomografias</label><input type="number" class="form-control" name="Tomografias" value="0" min="0"></div>
                     <div class="col-md-2"><label for="USG" class="form-label">USG</label><input type="number" class="form-control" name="USG" value="0" min="0"></div>
                 </div>
 
                 <h4 class="section-title">Medicações Prescritas:</h4>
 
+                <div class="row mb-3">
+                    <div class="col-md-2"><label for="Med_EV" class="form-label">EV</label><input type="number" class="form-control" name="Medicação prescritas EV" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Med_IM" class="form-label">IM</label><input type="number" class="form-control" name="Medicação prescritas IM" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Med_Subcultanea" class="form-label">Subcutânea</label><input type="number" class="form-control" name="Medicação Subcultanea" value="0" min="0"></div> 
+                    <div class="col-md-2"><label for="Med_VO" class="form-label">VO ou Subligual</label><input type="number" class="form-control" name="Medicação VO ou Subligual" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="Med_OFTALMICA" class="form-label">Oftálmica</label><input type="number" class="form-control" name="Medicação OFTALMICA" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="ILAcaO" class="form-label">Inalação</label><input type="number" class="form-control" name="INALAÇÃO" value="0" min="0"></div>
+                </div>
+
                 <div class="row mb-5">
-                    <div class="col-md-2"><label for="Med_EV" class="form-label">EV</label><input type="number" class="form-control" name="Medicacao prescritas EV" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_IM" class="form-label">IM</label><input type="number" class="form-control" name="Medicacao prescritas IM" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_Subcultanea" class="form-label">Subcutânea</label><input type="number" class="form-control" name="Medicacao Subcultanea" value="0" min="0"></div> 
-                    <div class="col-md-2"><label for="Med_VO" class="form-label">VO ou Subligual</label><input type="number" class="form-control" name="Medicacao VO ou Subligual" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_OFTALMICA" class="form-label">Oftálmica</label><input type="number" class="form-control" name="Medicacao OFTALMICA" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="ILAcaO" class="form-label">Inalação</label><input type="number" class="form-control" name="INALATORIA" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="NASO" class="form-label">Naso enteral</label><input type="number" class="form-control" name="NASO ENTERAL" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="RETAL" class="form-label">Retal</label><input type="number" class="form-control" name="RETAL" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="TOPICO" class="form-label">Tópico</label><input type="number" class="form-control" name="TOPICO" value="0" min="0"></div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="saveButton">
@@ -194,9 +200,10 @@
                 
                 // Colunas que DEVEM conter o ':' no Firebase conforme seu padrão original
                 const COLON_KEYS = [
-                    'Nome do medico (nome completo, maiusculo)',
-                    'Numero de Novos atendimentos',
-                    'Dia da sema'
+                    'Nome do médico',
+                    'Número de Novos atendimentos',
+                    'Data do plantão',
+                    'Dia da semana'
                 ];
                 
                 formData.forEach((value, key) => {
@@ -207,17 +214,14 @@
                     
                     const element = document.querySelector(`[name="${key}"]`);
                     
-                    // Ignora o campo 'Total de atendimentos' para tratar seu valor calculado abaixo
                     if (key === 'Total de atendimento novos atendimentos e reavalicões') {
                         return;
                     }
                     
-                    // ESSENCIAL: Garante que salve como NÚMERO no DB
                     if (element && element.type === 'number') {
                         dataToSave[targetKey] = Number(value) || 0;
                     } else {
-                        // Garante NOME MÉDICO em Maiúsculo para o filtro do Dashboard não quebrar
-                        if (key === 'Nome do medico (nome completo, maiusculo)') {
+                        if (key === 'Nome do médico') {
                              dataToSave[targetKey] = String(value).toUpperCase().trim();
                         } else {
                             dataToSave[targetKey] = value;
