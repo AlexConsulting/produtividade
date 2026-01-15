@@ -80,11 +80,13 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <label for="Cliente" class="form-label">Cliente:</label>
-                        <input type="text" class="form-control" name="Cliente" required>
+                        <input type="text" class="form-control" name="Cliente" list="listaClientes" required>
+                        <datalist id="listaClientes"></datalist>
                     </div>
                     <div class="col-md-6">
                         <label for="Unidade" class="form-label">Unidade:</label>
-                        <input type="text" class="form-control" name="Unidade" required>
+                        <input type="text" class="form-control" name="Unidade" list="listaUnidades" required>
+                        <datalist id="listaUnidades"></datalist>
                     </div>
                 </div>
 
@@ -177,6 +179,39 @@
             const novosInput = document.getElementById('Novos_Atendimentos');
             const reavalInput = document.getElementById('Numero_Reavalicoes');
             const totalInput = document.getElementById('Total_atendimentos_completo');
+
+            // --- FUNÇÃO PARA CARREGAR CLIENTES E UNIDADES DO BANCO ---
+            async function carregarSugestoes() {
+                try {
+                    const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+                    const clientesSet = new Set();
+                    const unidadesSet = new Set();
+
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.Cliente) clientesSet.add(data.Cliente);
+                        if (data.Unidade) unidadesSet.add(data.Unidade);
+                    });
+
+                    const datalistClientes = document.getElementById('listaClientes');
+                    const datalistUnidades = document.getElementById('listaUnidades');
+
+                    clientesSet.forEach(cliente => {
+                        const option = document.createElement('option');
+                        option.value = cliente;
+                        datalistClientes.appendChild(option);
+                    });
+
+                    unidadesSet.forEach(unidade => {
+                        const option = document.createElement('option');
+                        option.value = unidade;
+                        datalistUnidades.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Erro ao carregar sugestões:", error);
+                }
+            }
+            carregarSugestoes();
 
             // Função para calcular o total de atendimentos
             const updateSum = () => {
