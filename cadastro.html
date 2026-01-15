@@ -137,7 +137,7 @@
                     <div class="col-md-2"><label for="Med_Subcultanea" class="form-label">Subcutânea</label><input type="number" class="form-control" name="Medicacao Subcultanea" value="0" min="0"></div> 
                     <div class="col-md-2"><label for="Med_VO" class="form-label">VO ou Subligual</label><input type="number" class="form-control" name="Medicacao VO ou Subligual" value="0" min="0"></div>
                     <div class="col-md-2"><label for="Med_OFTALMICA" class="form-label">Oftálmica</label><input type="number" class="form-control" name="Medicacao OFTALMICA" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="ILAcaO" class="form-label">Inalação</label><input type="number" class="form-control" name="ILAcaO" value="0" min="0"></div>
+                    <div class="col-md-2"><label for="ILAcaO" class="form-label">Inalação</label><input type="number" class="form-control" name="INALATORIA" value="0" min="0"></div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="saveButton">
@@ -149,121 +149,109 @@
     </main>
 
  <script>
-        // CONFIGURAÇÃO REAL DO FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
-            authDomain: "produtividade-4d98e.firebaseapp.com",
-            projectId: "produtividade-4d98e",
-            storageBucket: "produtividade-4d98e.firebasestorage.app",
-            messagingSenderId: "642824868640",
-            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
-            measurementId: "G-489RSTNQVT"
-        };
+        // CONFIGURAÇÃO REAL DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
+            authDomain: "produtividade-4d98e.firebaseapp.com",
+            projectId: "produtividade-4d98e",
+            storageBucket: "produtividade-4d98e.firebasestorage.app",
+            messagingSenderId: "642824868640",
+            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
+            measurementId: "G-489RSTNQVT"
+        };
 
-        // Inicializa o Firebase e o Firestore
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
+        // Inicializa o Firebase e o Firestore
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('cadastroForm');
-            const statusMessage = document.getElementById('statusMessage');
-            const novosInput = document.getElementById('Novos_Atendimentos');
-            const reavalInput = document.getElementById('Numero_Reavalicoes');
-            const totalInput = document.getElementById('Total_atendimentos_completo');
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('cadastroForm');
+            const statusMessage = document.getElementById('statusMessage');
+            const novosInput = document.getElementById('Novos_Atendimentos');
+            const reavalInput = document.getElementById('Numero_Reavalicoes');
+            const totalInput = document.getElementById('Total_atendimentos_completo');
 
-            // Função para calcular o total de atendimentos
-            const updateSum = () => {
-                const novos = Number(novosInput.value) || 0;
-                const reaval = Number(reavalInput.value) || 0;
-                totalInput.value = novos + reaval;
-            };
+            // Função para calcular o total de atendimentos
+            const updateSum = () => {
+                const novos = Number(novosInput.value) || 0;
+                const reaval = Number(reavalInput.value) || 0;
+                totalInput.value = novos + reaval;
+            };
 
-            // Adiciona listeners para cálculo automático
-            novosInput.addEventListener('input', updateSum);
-            reavalInput.addEventListener('input', updateSum);
-            updateSum(); // Inicializa o campo total
+            // Adiciona listeners para cálculo automático
+            novosInput.addEventListener('input', updateSum);
+            reavalInput.addEventListener('input', updateSum);
+            updateSum(); // Inicializa o campo total
 
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btnSalvar = document.getElementById('saveButton');
-                btnSalvar.disabled = true;
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btnSalvar = document.getElementById('saveButton');
+                btnSalvar.disabled = true;
 
-                const formData = new FormData(form);
-                const dataToSave = {};
-                
-                // Colunas que DEVEM conter o ':' no Firebase (as demais não terão)
+                const formData = new FormData(form);
+                const dataToSave = {};
+                
+                // Colunas que DEVEM conter o ':' no Firebase conforme seu padrão original
                 const COLON_KEYS = [
                     'Nome do medico (nome completo, maiusculo)',
                     'Numero de Novos atendimentos',
                     'Dia da sema'
-                    // 'Total de atendimento novos atendimentos e reavalicões' será tratado separadamente abaixo
                 ];
-                
-                // Itera sobre todos os campos do formulário para montar o objeto de dados
-                formData.forEach((value, key) => {
-                    // Determina a chave correta para o Firebase: com ou sem ':'
+                
+                formData.forEach((value, key) => {
                     let targetKey = key;
                     if (COLON_KEYS.includes(key)) {
                         targetKey = key + ':';
                     }
                     
-                    // Encontra o elemento original para verificar o tipo (number)
                     const element = document.querySelector(`[name="${key}"]`);
                     
                     // Ignora o campo 'Total de atendimentos' para tratar seu valor calculado abaixo
                     if (key === 'Total de atendimento novos atendimentos e reavalicões') {
-                        // Não faz nada aqui, pois o valor final será inserido após o loop
                         return;
                     }
                     
-                    // Verifica se o campo é do tipo 'number' para salvar como número no DB
-                    if (element && element.type === 'number') {
-                        dataToSave[targetKey] = Number(value) || 0;
-                    } else {
-                        // Trata a capitalização do nome do médico
-                        if (key === 'Nome do medico (nome completo, maiusculo)') {
-                             dataToSave[targetKey] = String(value).toUpperCase().trim();
-                        } else {
-                            dataToSave[targetKey] = value;
-                        }
-                    }
-                });
+                    // ESSENCIAL: Garante que salve como NÚMERO no DB
+                    if (element && element.type === 'number') {
+                        dataToSave[targetKey] = Number(value) || 0;
+                    } else {
+                        // Garante NOME MÉDICO em Maiúsculo para o filtro do Dashboard não quebrar
+                        if (key === 'Nome do medico (nome completo, maiusculo)') {
+                             dataToSave[targetKey] = String(value).toUpperCase().trim();
+                        } else {
+                            dataToSave[targetKey] = value;
+                        }
+                    }
+                });
 
-                // TRATAMENTO PÓS-LOOP PARA GARANTIR CHAVES E VALORES CORRETOS
+                // 1. Carimbo de Data/Hora
+                dataToSave["Carimbo de data/hora"] = new Date().toLocaleString('pt-BR');
+                
+                // 2. Adiciona o Total calculado com a chave original exata e ':'
+                dataToSave["Total de atendimento novos atendimentos e reavalicões:"] = Number(totalInput.value);
 
-                // 1. Adiciona o Carimbo de Data/Hora (sem ':')
-                dataToSave["Carimbo de data/hora"] = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                
-                // 2. Adiciona o Total calculado (garantindo que é um NÚMERO e com a chave correta com ':')
-                dataToSave["Total de atendimento novos atendimentos e reavalicões:"] = Number(totalInput.value);
+                statusMessage.style.display = 'block';
+                statusMessage.className = 'alert alert-info';
+                statusMessage.textContent = 'Enviando dados para o Firebase...';
 
-                statusMessage.style.display = 'block';
-                statusMessage.className = 'alert alert-info';
-                statusMessage.textContent = 'Enviando dados para o Firebase...';
+                try {
+                    const docRef = await db.collection(PRODUTIVIDADE_COLLECTION).add(dataToSave);
+                    statusMessage.className = 'alert alert-success';
+                    statusMessage.textContent = `Sucesso! Registro salvo no DB com ID: ${docRef.id}`;
+                    form.reset();
+                    updateSum(); 
 
-                try {
-                    // Salva os dados no Firestore (usando dataToSave)
-                    const docRef = await db.collection(PRODUTIVIDADE_COLLECTION).add(dataToSave);
-
-                    statusMessage.className = 'alert alert-success';
-                    statusMessage.textContent = `Sucesso! Registro salvo no DB com ID: ${docRef.id}`;
-                    form.reset();
-                    updateSum(); 
-
-                } catch (error) {
-                    statusMessage.className = 'alert alert-danger';
-                    statusMessage.textContent = `Erro ao salvar no Firebase: ${error.message}. Verifique as permissões de Escrita (Rules).`; 
-
-                } finally {
-                    btnSalvar.disabled = false;
-                }
-            });
-        });
-    </script>
+                } catch (error) {
+                    statusMessage.className = 'alert alert-danger';
+                    statusMessage.textContent = `Erro ao salvar no Firebase: ${error.message}`; 
+                } finally {
+                    btnSalvar.disabled = false;
+                }
+            });
+        });
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
-
