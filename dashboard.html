@@ -377,126 +377,134 @@
         K_ECHO, K_ELETRO, K_LAB, K_RX, K_TOMO, K_USG, 
         K_MED_EV, K_MED_IM, K_MED_SUBCUT, K_MED_VO, K_MED_OFTAL, K_MED_INAL
     ];
-	/**
-     * @description Carrega os dados do Firebase Firestore e inicializa o dashboard.
+/**
+     * @description Carrega os dados do Firebase Firestore com Snapshot (Economia de Cota) e inicializa o dashboard.
      */
     async function initDashboard() {
         const loadingMessage = document.getElementById('loadingMessage');
         if (loadingMessage) loadingMessage.style.display = 'block';
 
         try {
-            console.log("Tentando acessar a coleção:", PRODUTIVIDADE_COLLECTION);
-            const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+            console.log("Tentando acessar a coleção via Snapshot (Otimizado):", PRODUTIVIDADE_COLLECTION);
             
-            if (snapshot.empty) {
-                console.error("ERRO: Coleção vazia ou nome incorreto.");
-                const sourceLabel = document.getElementById('data-source-label');
-                if(sourceLabel) sourceLabel.innerHTML = `AVISO: <span style="color:orange;">Coleção '${PRODUTIVIDADE_COLLECTION}' não encontrada.</span>`;
-                return;
-            }
-
-            const firstDoc = snapshot.docs[0].data();
-            console.log("Campos reais no Firebase:", Object.keys(firstDoc));
-
-            allData = snapshot.docs.map(doc => {
-                const data = doc.data();
-                const newRow = {};
+            // Trocamos o .get() por .onSnapshot() para manter os dados em memória
+            db.collection(PRODUTIVIDADE_COLLECTION).onSnapshot((snapshot) => {
                 
-                const smartGet = (possibleNames, isNumber = false) => {
-                    const names = Array.isArray(possibleNames) ? possibleNames : [possibleNames];
-                    let value = undefined;
-
-                    for (let name of names) {
-                        if (data[name] !== undefined) {
-                            value = data[name];
-                            break;
-                        }
-                    }
-
-                    if (isNumber) {
-                        return (Number(value) || 0);
-                    }
-                    return (value !== undefined && value !== null) ? String(value).trim() : '';
-                };
-
-                // --- MAPEAMENTO DOS CAMPOS CONFORME SEU ORIGINAL ---
-                let rawDate = smartGet(["Data do plantão:  ", "Data do plantão:", "Data do plantao:", "Data"]);
-                if (rawDate && typeof rawDate.toDate === 'function') {
-                    newRow[K_DATA] = rawDate.toDate().toISOString().substring(0, 10);
-                } else if (typeof rawDate === 'string' && rawDate.includes('/')) {
-                    const parts = rawDate.split('/');
-                    newRow[K_DATA] = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    newRow[K_DATA] = rawDate;
+                if (snapshot.empty) {
+                    console.error("ERRO: Coleção vazia ou nome incorreto.");
+                    const sourceLabel = document.getElementById('data-source-label');
+                    if(sourceLabel) sourceLabel.innerHTML = `AVISO: <span style="color:orange;">Coleção '${PRODUTIVIDADE_COLLECTION}' não encontrada.</span>`;
+                    return;
                 }
 
-                newRow[K_MEDICO] = smartGet(["Nome do médico ", "Nome do médico", "Nome do medico", "Nome do medico "]);
-                newRow[K_TURNO] = smartGet(["Diurno ou noturno:", "Diurno ou noturno", "Turno", "TURNO"]);
-                newRow[K_DIA_SEMANA] = smartGet(["Dia da semana:", "Dia da semana", "DIA DA SEMANA"]);
-                newRow[K_CLIENTE] = smartGet(["Cliente", "CLIENTE", "Empresa"]);
-                newRow[K_UNIDADE] = smartGet(["Unidade", "UNIDADE", "Local"]);
+                const firstDoc = snapshot.docs[0].data();
+                console.log("Campos reais no Firebase:", Object.keys(firstDoc));
 
-                newRow[K_ATEND_NOVO] = smartGet(["Número de Novos atendimentos:", "Numero de Novos atendimentos:", "Novos atendimentos"], true);
-                newRow[K_REAVALIACOES] = smartGet(["Número Reavalições", "Numero Reavalicões", "Reavaliacoes"], true);
-                newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES];
-                newRow[K_ATEND_TOTAL] = smartGet(["Atendimento Total", "Total de atendimentos"], true);
+                // Mantendo sua lógica exata de processamento de linhas
+                allData = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const newRow = {};
+                    
+                    const smartGet = (possibleNames, isNumber = false) => {
+                        const names = Array.isArray(possibleNames) ? possibleNames : [possibleNames];
+                        let value = undefined;
 
-                newRow[K_FICHA_VERDE] = smartGet(["Número de fichas verdes", "Numero de fichas verdes"], true);
-                newRow[K_FICHA_AMARELA] = smartGet(["Número de fichas amarelas", "Numero de fichas amarelas"], true);
-                newRow[K_FICHA_LARANJA] = smartGet(["Número de fichas laranja", "Numero de fichas laranja"], true);
-                newRow[K_FICHA_AZUL] = smartGet(["Número de fichas azul", "Numero de fichas azul"], true);
-                newRow[K_FICHA_BRANCA] = smartGet(["Número de fichas brancas", "Numero de fichas brancas"], true);
+                        for (let name of names) {
+                            if (data[name] !== undefined) {
+                                value = data[name];
+                                break;
+                            }
+                        }
 
-                newRow[K_ECHO] = smartGet(["Número de ecocardiograma", "Ecocardiograma"], true);
-                newRow[K_ELETRO] = smartGet(["Número de eletrocardiograma", "Eletrocardiograma"], true);
-                newRow[K_LAB] = smartGet(["Número de laboratoriais", "Numero de laboratoriais", "Laboratoriais"], true);
-                newRow[K_RX] = smartGet(["Número de RX", "Numero de RX", "RX"], true);
-                newRow[K_TOMO] = smartGet(["Tomografias", "TOMO", "Tomografia"], true);
-                newRow[K_USG] = smartGet(["USG", "Ultrassonografia"], true);
+                        if (isNumber) {
+                            return (Number(value) || 0);
+                        }
+                        return (value !== undefined && value !== null) ? String(value).trim() : '';
+                    };
 
-                newRow[K_MED_EV] = smartGet(["Medicação prescritas EV", "Medicacao prescritas EV", "EV"], true);
-                newRow[K_MED_IM] = smartGet(["Medicação prescritas IM", "Medicacao prescritas IM", "IM"], true);
-                newRow[K_MED_SUBCUT] = smartGet(["Medicação Subcultanea", "Medicacao Subcultanea"], true);
-                newRow[K_MED_VO] = smartGet(["Medicação VO ou Subligual", "Medicacao VO ou Subligual", "VO"], true);
-                newRow[K_MED_INAL] = smartGet(["INALATORIA", "Inalatoria"], true);
-                newRow[K_MED_OFTAL] = smartGet(["OFTALMICA", "Oftalmica"], true);
-                
-                return newRow;
-            }).filter(row => row[K_MEDICO] !== '');
+                    // --- MAPEAMENTO DOS CAMPOS (MANTIDO SEU ORIGINAL) ---
+                    let rawDate = smartGet(["Data do plantão:  ", "Data do plantão:", "Data do plantao:", "Data"]);
+                    if (rawDate && typeof rawDate.toDate === 'function') {
+                        newRow[K_DATA] = rawDate.toDate().toISOString().substring(0, 10);
+                    } else if (typeof rawDate === 'string' && rawDate.includes('/')) {
+                        const parts = rawDate.split('/');
+                        newRow[K_DATA] = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    } else {
+                        newRow[K_DATA] = rawDate;
+                    }
 
-            console.log("Total de registros processados:", allData.length);
+                    newRow[K_MEDICO] = smartGet(["Nome do médico ", "Nome do médico", "Nome do medico", "Nome do medico "]);
+                    newRow[K_TURNO] = smartGet(["Diurno ou noturno:", "Diurno ou noturno", "Turno", "TURNO"]);
+                    newRow[K_DIA_SEMANA] = smartGet(["Dia da semana:", "Dia da semana", "DIA DA SEMANA"]);
+                    newRow[K_CLIENTE] = smartGet(["Cliente", "CLIENTE", "Empresa"]);
+                    newRow[K_UNIDADE] = smartGet(["Unidade", "UNIDADE", "Local"]);
 
-            if (allData.length > 0) {
-                populateMedicoFilter(allData);
-                populateTurnoFilter(allData);
-                populateClienteFilter(allData); // ADICIONE ESTA LINHA
-				populateUnidadeFilter(allData); // ADICIONE ESTA LINHA
-                updateDashboard();
+                    newRow[K_ATEND_NOVO] = smartGet(["Número de Novos atendimentos:", "Numero de Novos atendimentos:", "Novos atendimentos"], true);
+                    newRow[K_REAVALIACOES] = smartGet(["Número Reavalições", "Numero Reavalicões", "Reavaliacoes"], true);
+                    newRow[K_TOTAL_GERAL] = newRow[K_ATEND_NOVO] + newRow[K_REAVALIACOES];
+                    newRow[K_ATEND_TOTAL] = smartGet(["Atendimento Total", "Total de atendimentos"], true);
 
-                const applyBtn = document.getElementById('applyFiltersBtn');
-                const clearBtn = document.getElementById('clearFiltersBtn');
-                if(applyBtn) applyBtn.onclick = updateDashboard;
-                if(clearBtn) clearBtn.onclick = clearFilters;
-                
-                const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroData', 'filtroTurno', 'filtroMedico'];
-                controls.forEach(id => {
-                    const el = document.getElementById(id);
-                    if(el) el.disabled = false;
-                });
-                
+                    newRow[K_FICHA_VERDE] = smartGet(["Número de fichas verdes", "Numero de fichas verdes"], true);
+                    newRow[K_FICHA_AMARELA] = smartGet(["Número de fichas amarelas", "Numero de fichas amarelas"], true);
+                    newRow[K_FICHA_LARANJA] = smartGet(["Número de fichas laranja", "Numero de fichas laranja"], true);
+                    newRow[K_FICHA_AZUL] = smartGet(["Número de fichas azul", "Numero de fichas azul"], true);
+                    newRow[K_FICHA_BRANCA] = smartGet(["Número de fichas brancas", "Numero de fichas brancas"], true);
+
+                    newRow[K_ECHO] = smartGet(["Número de ecocardiograma", "Ecocardiograma"], true);
+                    newRow[K_ELETRO] = smartGet(["Número de eletrocardiograma", "Eletrocardiograma"], true);
+                    newRow[K_LAB] = smartGet(["Número de laboratoriais", "Numero de laboratoriais", "Laboratoriais"], true);
+                    newRow[K_RX] = smartGet(["Número de RX", "Numero de RX", "RX"], true);
+                    newRow[K_TOMO] = smartGet(["Tomografias", "TOMO", "Tomografia"], true);
+                    newRow[K_USG] = smartGet(["USG", "Ultrassonografia"], true);
+
+                    newRow[K_MED_EV] = smartGet(["Medicação prescritas EV", "Medicacao prescritas EV", "EV"], true);
+                    newRow[K_MED_IM] = smartGet(["Medicação prescritas IM", "Medicacao prescritas IM", "IM"], true);
+                    newRow[K_MED_SUBCUT] = smartGet(["Medicação Subcultanea", "Medicacao Subcultanea"], true);
+                    newRow[K_MED_VO] = smartGet(["Medicação VO ou Subligual", "Medicacao VO ou Subligual", "VO"], true);
+                    newRow[K_MED_INAL] = smartGet(["INALATORIA", "Inalatoria"], true);
+                    newRow[K_MED_OFTAL] = smartGet(["OFTALMICA", "Oftalmica"], true);
+                    
+                    return newRow;
+                }).filter(row => row[K_MEDICO] !== '');
+
+                console.log("Sincronização realizada. Total na memória:", allData.length);
+
+                if (allData.length > 0) {
+                    populateMedicoFilter(allData);
+                    populateTurnoFilter(allData);
+                    populateClienteFilter(allData); 
+                    populateUnidadeFilter(allData); 
+                    updateDashboard();
+
+                    // Configuração dos botões (apenas na primeira carga)
+                    const applyBtn = document.getElementById('applyFiltersBtn');
+                    const clearBtn = document.getElementById('clearFiltersBtn');
+                    if(applyBtn) applyBtn.onclick = updateDashboard;
+                    if(clearBtn) clearBtn.onclick = clearFilters;
+                    
+                    const controls = ['applyFiltersBtn', 'clearFiltersBtn', 'filtroData', 'filtroTurno', 'filtroMedico'];
+                    controls.forEach(id => {
+                        const el = document.getElementById(id);
+                        if(el) el.disabled = false;
+                    });
+                    
+                    const sourceLabel = document.getElementById('data-source-label');
+                    if(sourceLabel) sourceLabel.innerHTML = `<span class="badge bg-success">Conectado (Live): ${allData.length} registros</span>`;
+                }
+
+                if (loadingMessage) loadingMessage.style.display = 'none';
+
+            }, (error) => {
+                console.error("Erro na escuta do Snapshot:", error);
                 const sourceLabel = document.getElementById('data-source-label');
-                if(sourceLabel) sourceLabel.innerHTML = `<span class="badge bg-success">Firebase: ${allData.length} registros carregados</span>`;
-            }
+                if(sourceLabel) sourceLabel.innerHTML = `<span style="color:red;">Erro de conexão em tempo real.</span>`;
+            });
 
         } catch (error) {
             console.error("Erro Crítico ao Inicializar:", error);
-            const sourceLabel = document.getElementById('data-source-label');
-            if(sourceLabel) sourceLabel.innerHTML = `<span style="color:red;">Erro de conexão com o Banco de Dados.</span>`;
-        } finally {
             if (loadingMessage) loadingMessage.style.display = 'none';
         }
     }
-
 // --- FUNÇÕES DE POPULAÇÃO DOS FILTROS (VERSÃO CORRIGIDA) ---
 
     function populateClienteFilter(data) { 
@@ -564,8 +572,12 @@
         });
         select.disabled = false; // DESBLOQUEIA O FILTRO
     }
+
    // --- LÓGICA DE FILTRAGEM COMPLETA E CORRIGIDA ---
     function filterData(data) {
+        // --- LOG DE VALIDAÇÃO DE CACHE (OTIMIZAÇÃO) ---
+        console.log("💎 Otimização: Filtrando " + data.length + " registros diretamente da memória (Custo Zero Firebase).");
+
         // Captura dos elementos do DOM com verificações de existência
         const selectMedicoElement = document.getElementById('filtroMedico');
         const selectedMedicos = selectMedicoElement ? Array.from(selectMedicoElement.selectedOptions).map(o => o.value.trim().toUpperCase()) : [];
