@@ -108,7 +108,7 @@
 
                 <div class="col-md-12 col-lg-6">
                     <label for="filtroMedico" class="form-label fw-bold">3. Filtrar por Médico (Use Ctrl/Cmd para múltiplos):</label>
-                    <select class="form-select" id="filtroMedico" multiple size="5" disabled>
+                    <select class="form-select" id="filtroMedico" multiple size="5" disabled onchange="if(typeof monitorarSelecaoMedico === 'function') monitorarSelecaoMedico()">
                         <option value="todos">Carregando...</option>
                     </select>
                 </div>
@@ -240,6 +240,13 @@
             </div>
         </section>
     </main>
+
+    <div id="containerBotaoRelatorio" class="no-print" style="position: fixed; bottom: 30px; right: 30px; display: none; z-index: 2000;">
+        <button onclick="abrirRelatorioIndividual()" class="btn btn-danger btn-lg shadow-lg" style="border-radius: 50px; padding: 15px 30px; border: 2px solid white; font-weight: bold;">
+            📊 GERAR RELATÓRIO DE <span id="nomeMedicoBotao"></span>
+        </button>
+    </div>
+
     <footer class="text-center text-muted py-3">Dashboard de Produtividade</footer>
 
 <script>
@@ -601,23 +608,6 @@
         if (alert) alert.style.display = show ? 'block' : 'none';
     }
 
-    function updateDashboard() {
-        // Esta função une a filtragem com a atualização visual
-        const filteredData = filterData(allData);
-
-        if (filteredData.length === 0) {
-            toggleFilterAlert(true);
-            generateKPIs([]); 
-            createCharts([]);
-            renderDetailedTable([]); 
-        } else {
-            toggleFilterAlert(false);
-            generateKPIs(filteredData);
-            createCharts(filteredData);
-            renderDetailedTable(filteredData); 
-        }
-    }
-
 // --- GERAÇÃO DE KPIS E GRÁFICOS ---
     function generateKPIs(data) {
         // Função auxiliar para evitar erro caso o elemento ID não exista no HTML
@@ -846,23 +836,60 @@
         
         updateDashboard();
     }
+function updateDashboard() {
+    const filteredData = filterData(allData);
 
-    function updateDashboard() {
-        const filteredData = filterData(allData);
-
-        if (filteredData.length === 0) {
-            toggleFilterAlert(true);
-            generateKPIs([]); 
-            createCharts([]);
-            renderDetailedTable([]); 
-        } else {
-            toggleFilterAlert(false);
-            generateKPIs(filteredData);
-            createCharts(filteredData);
-            renderDetailedTable(filteredData); 
-        }
+    if (filteredData.length === 0) {
+        toggleFilterAlert(true);
+        generateKPIs([]); 
+        createCharts([]);
+        renderDetailedTable([]); 
+    } else {
+        toggleFilterAlert(false);
+        generateKPIs(filteredData);
+        createCharts(filteredData);
+        renderDetailedTable(filteredData); 
     }
 
+    // ADICIONE ESTA LINHA AQUI:
+    gerenciarBotaoRelatorio(); 
+}
+
+// Esta função agora apenas limpa o botão se você mudar de médico sem filtrar
+function monitorarSelecaoMedico() {
+    const container = document.getElementById('containerBotaoRelatorio');
+    // Esconde o botão ao trocar a seleção para garantir que não usem dados antigos
+    container.style.display = 'none';
+}
+
+function gerenciarBotaoRelatorio() {
+    const selectMed = document.getElementById('filtroMedico');
+    const container = document.getElementById('containerBotaoRelatorio');
+    const spanNome = document.getElementById('nomeMedicoBotao');
+    
+    const selecionados = Array.from(selectMed.selectedOptions).filter(opt => opt.value !== "todos" && opt.value !== "");
+
+    // SÓ APARECE se houver 1 médico E houver dados carregados (totalAtendimentosMedico > 0)
+    const totalCarregado = parseInt(document.getElementById('totalAtendimentosMedico').innerText) || 0;
+
+    if (selecionados.length === 1 && totalCarregado > 0) {
+        spanNome.innerText = selecionados[0].value.toUpperCase();
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+function abrirRelatorioIndividual() {
+    const selectMed = document.getElementById('filtroMedico');
+    const nomeMedico = selectMed.value; // Pega o nome selecionado no filtro
+
+    if (nomeMedico && nomeMedico !== "todos") {
+        // Abre a página passando o nome do médico na URL
+        window.open(`detalhes-medico.html?medico=${encodeURIComponent(nomeMedico)}`, '_blank');
+    } else {
+        alert("Por favor, selecione um médico primeiro.");
+    }
+}
     // Início automático após carregar tudo
     initDashboard();	
 	
