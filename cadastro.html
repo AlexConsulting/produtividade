@@ -46,13 +46,13 @@
                 
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="Data_do_plantao" class="form-label">Data do plantão:</label>
-                        <input type="date" class="form-control" name="Data do plantão" required>
+                        <label class="form-label">Data do plantão:</label>
+                        <input type="date" class="form-control" name="Data do plantão:" required>
                     </div>
                     
                     <div class="col-md-4">
-                        <label for="Diurno_ou_noturno" class="form-label">Turno:</label>
-                        <select class="form-select" name="Diurno ou noturno" required>
+                        <label class="form-label">Turno:</label>
+                        <select class="form-select" name="Diurno ou noturno:" required>
                             <option value="">Selecione...</option>
                             <option value="DIURNO">DIURNO</option>
                             <option value="INTERMEDIARIO">INTERMEDIARIO</option>
@@ -61,30 +61,30 @@
                     </div>
                     
                     <div class="col-md-4">
-                        <label for="Dia_da_sema" class="form-label">Dia da semana:</label>
-                        <input type="text" class="form-control" name="Dia da semana" placeholder="Ex: SEGUNDA-FEIRA" required>
+                        <label class="form-label">Dia da semana:</label>
+                        <input type="text" class="form-control" name="Dia da semana:" placeholder="Ex: SEGUNDA-FEIRA" required>
                     </div>
                 </div>
 
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <label for="Nome_do_medico" class="form-label">Nome completo do médico (MAIÚSCULO):</label>
-                        <input type="text" class="form-control" name="Nome do médico" placeholder="NOME COMPLETO, MAIÚSCULO" required>
+                        <label class="form-label">Nome completo do médico (MAIÚSCULO):</label>
+                        <input type="text" class="form-control" name="Nome do médico" placeholder="NOME COMPLETO" required>
                     </div>
                     <div class="col-md-6">
-                        <label for="Consultorio" class="form-label">Consultório:</label>
+                        <label class="form-label">Consultório:</label>
                         <input type="text" class="form-control" name="Consultorio" placeholder="Ex: C1">
                     </div>
                 </div>
                 
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <label for="Cliente" class="form-label">Cliente:</label>
+                        <label class="form-label">Cliente:</label>
                         <input type="text" class="form-control" name="Cliente" list="listaClientes" required>
                         <datalist id="listaClientes"></datalist>
                     </div>
                     <div class="col-md-6">
-                        <label for="Unidade" class="form-label">Unidade:</label>
+                        <label class="form-label">Unidade:</label>
                         <input type="text" class="form-control" name="Unidade" list="listaUnidades" required>
                         <datalist id="listaUnidades"></datalist>
                     </div>
@@ -95,57 +95,56 @@
 
                 <div class="row mb-4">
                     <div class="col-md-4">
-                        <label for="Numero_de_Novos_atendimentos" class="form-label">Número de Novos atendimentos:</label>
-                        <input type="number" class="form-control" id="Novos_Atendimentos" name="Número de Novos atendimentos" value="0" min="0" required>
+                        <label class="form-label">Número de Novos atendimentos:</label>
+                        <input type="number" class="form-control" id="Novos_Atendimentos" name="Número de Novos atendimentos:" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="Numero_Reavalicoes" class="form-label">Número de Reavaliações:</label>
-                        <input type="number" class="form-control" id="Numero_Reavalicoes" name="Número Reavaliações" value="0" min="0" required>
+                        <label class="form-label">Número de Reavaliações:</label>
+                        <input type="number" class="form-control" id="Numero_Reavalicoes" name="Número Reavalições" value="0" min="0" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="Total_atendimentos_completo" class="form-label">Total de novos atendimentos e reavaliações:</label>
-                        <input type="number" class="form-control" id="Total_atendimentos_completo" name="Total de atendimento novos atendimentos e reavalicões" value="0" min="0" required readonly>
-                        <small class="text-muted">Calculado (Novos + Reavaliações)</small>
+                        <label class="form-label">Total Geral:</label>
+                        <input type="number" class="form-control" id="Total_atendimentos_completo" value="0" min="0" required readonly style="background-color: #e9ecef;">
                     </div>
                 </div>
 
                 <h4 class="section-title">Classificação de Risco (Fichas):</h4>
                 
                 <div class="row mb-4">
-                    <div class="col-md-2"><label for="Ficha_verde" class="form-label">Verdes</label><input type="number" class="form-control" name="Número de fichas verdes" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_amarela" class="form-label">Amarelas</label><input type="number" class="form-control" name="Número de fichas amarelas" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_laranja" class="form-label">Laranjas</label><input type="number" class="form-control" name="Número de fichas laranja" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_azul" class="form-label">Azuis</label><input type="number" class="form-control" name="Número de fichas azul" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_branca" class="form-label">Brancas</label><input type="number" class="form-control" name="Número de fichas brancas" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Ficha_vermelha" class="form-label">Vermelhas</label><input type="number" class="form-control" name="Número de fichas VERMELHO" value="0" min="0"></div>
+                    <div class="col-md-2"><label class="form-label">Verdes</label><input type="number" class="form-control" name="Número de fichas verdes" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Amarelas</label><input type="number" class="form-control" name="Número de fichas amarelas" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Laranjas</label><input type="number" class="form-control" name="Número de fichas laranja" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Azuis</label><input type="number" class="form-control" name="Número de fichas azul" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Brancas</label><input type="number" class="form-control" name="Número de fichas brancas" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Vermelhas</label><input type="number" class="form-control" name="Número de fichas VERMELHO" value="0"></div>
                 </div>
 
                 <h4 class="section-title">Exames:</h4>
                 
                 <div class="row mb-4">
-                    <div class="col-md-2"><label for="ecocardiograma" class="form-label">Ecocardiograma</label><input type="number" class="form-control" name="Número de ecocardiograma" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="eletrocardiograma" class="form-label">Eletrocardiograma</label><input type="number" class="form-control" name="Número de eletrocardiograma" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="laboratoriais" class="form-label">Laboratoriais</label><input type="number" class="form-control" name="Número de laboratoriais" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="RX" class="form-label">RX</label><input type="number" class="form-control" name="Número de RX" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Tomografias" class="form-label">Tomografias</label><input type="number" class="form-control" name="Tomografias" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="USG" class="form-label">USG</label><input type="number" class="form-control" name="USG" value="0" min="0"></div>
+                    <div class="col-md-2"><label class="form-label">Ecocardiograma</label><input type="number" class="form-control" name="Número de ecocardiograma" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Eletrocardiograma</label><input type="number" class="form-control" name="Número de eletrocardiograma" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Laboratoriais</label><input type="number" class="form-control" name="Número de laboratoriais" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">RX</label><input type="number" class="form-control" name="Número de RX" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Tomografias</label><input type="number" class="form-control" name="Tomografias" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">USG</label><input type="number" class="form-control" name="USG" value="0"></div>
                 </div>
 
                 <h4 class="section-title">Medicações Prescritas:</h4>
 
                 <div class="row mb-3">
-                    <div class="col-md-2"><label for="Med_EV" class="form-label">EV</label><input type="number" class="form-control" name="Medicação prescritas EV" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_IM" class="form-label">IM</label><input type="number" class="form-control" name="Medicação prescritas IM" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_Subcultanea" class="form-label">Subcutânea</label><input type="number" class="form-control" name="Medicação Subcultanea" value="0" min="0"></div> 
-                    <div class="col-md-2"><label for="Med_VO" class="form-label">VO ou Subligual</label><input type="number" class="form-control" name="Medicação VO ou Subligual" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="Med_OFTALMICA" class="form-label">Oftálmica</label><input type="number" class="form-control" name="Medicação OFTALMICA" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="ILAcaO" class="form-label">Inalação</label><input type="number" class="form-control" name="INALAÇÃO" value="0" min="0"></div>
+                    <div class="col-md-2"><label class="form-label">EV</label><input type="number" class="form-control" name="Medicação prescritas EV" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">IM</label><input type="number" class="form-control" name="Medicação prescritas IM" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Subcutânea</label><input type="number" class="form-control" name="Medicação Subcultanea" value="0"></div> 
+                    <div class="col-md-2"><label class="form-label">VO/Sublingual</label><input type="number" class="form-control" name="Medicação VO ou Subligual" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Oftálmica</label><input type="number" class="form-control" name="Medicação OFTALMICA" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Inalação</label><input type="number" class="form-control" name="INALAÇÃO" value="0"></div>
                 </div>
 
                 <div class="row mb-5">
-                    <div class="col-md-2"><label for="NASO" class="form-label">Naso enteral</label><input type="number" class="form-control" name="NASO ENTERAL" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="RETAL" class="form-label">Retal</label><input type="number" class="form-control" name="RETAL" value="0" min="0"></div>
-                    <div class="col-md-2"><label for="TOPICO" class="form-label">Tópico</label><input type="number" class="form-control" name="TOPICO" value="0" min="0"></div>
+                    <div class="col-md-2"><label class="form-label">Naso enteral</label><input type="number" class="form-control" name="NASO ENTERAL" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Retal</label><input type="number" class="form-control" name="RETAL" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">Tópico</label><input type="number" class="form-control" name="TOPICO" value="0"></div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="saveButton">
@@ -156,8 +155,7 @@
         </div>
     </main>
 
- <script>
-        // CONFIGURAÇÃO REAL DO FIREBASE
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
             authDomain: "produtividade-4d98e.firebaseapp.com",
@@ -168,7 +166,6 @@
             measurementId: "G-489RSTNQVT"
         };
 
-        // Inicializa o Firebase e o Firestore
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const PRODUTIVIDADE_COLLECTION = 'produtividade'; 
@@ -180,10 +177,9 @@
             const reavalInput = document.getElementById('Numero_Reavalicoes');
             const totalInput = document.getElementById('Total_atendimentos_completo');
 
-            // --- FUNÇÃO PARA CARREGAR CLIENTES E UNIDADES DO BANCO ---
             async function carregarSugestoes() {
                 try {
-                    const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).get();
+                    const snapshot = await db.collection(PRODUTIVIDADE_COLLECTION).limit(500).get();
                     const clientesSet = new Set();
                     const unidadesSet = new Set();
 
@@ -213,17 +209,14 @@
             }
             carregarSugestoes();
 
-            // Função para calcular o total de atendimentos
             const updateSum = () => {
                 const novos = Number(novosInput.value) || 0;
                 const reaval = Number(reavalInput.value) || 0;
                 totalInput.value = novos + reaval;
             };
 
-            // Adiciona listeners para cálculo automático
             novosInput.addEventListener('input', updateSum);
             reavalInput.addEventListener('input', updateSum);
-            updateSum(); // Inicializa o campo total
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -233,41 +226,23 @@
                 const formData = new FormData(form);
                 const dataToSave = {};
                 
-                // Colunas que DEVEM conter o ':' no Firebase conforme seu padrão original
-                const COLON_KEYS = [
-                    'Nome do médico',
-                    'Número de Novos atendimentos',
-                    'Data do plantão',
-                    'Dia da semana'
-                ];
-                
                 formData.forEach((value, key) => {
-                    let targetKey = key;
-                    if (COLON_KEYS.includes(key)) {
-                        targetKey = key + ':';
-                    }
-                    
                     const element = document.querySelector(`[name="${key}"]`);
                     
-                    if (key === 'Total de atendimento novos atendimentos e reavalicões') {
-                        return;
-                    }
-                    
                     if (element && element.type === 'number') {
-                        dataToSave[targetKey] = Number(value) || 0;
+                        dataToSave[key] = Number(value) || 0;
                     } else {
+                        // Trata o nome do médico para sempre ser salvo em maiúsculo
                         if (key === 'Nome do médico') {
-                             dataToSave[targetKey] = String(value).toUpperCase().trim();
+                             dataToSave[key] = String(value).toUpperCase().trim();
                         } else {
-                            dataToSave[targetKey] = value;
+                            dataToSave[key] = value;
                         }
                     }
                 });
 
-                // 1. Carimbo de Data/Hora
-                dataToSave["Carimbo de data/hora"] = new Date().toLocaleString('pt-BR');
-                
-                // 2. Adiciona o Total calculado com a chave original exata e ':'
+                // CHAVES ESPECÍFICAS PARA GARANTIR COMPATIBILIDADE COM O DASHBOARD E BANCO
+                dataToSave["Carimbo de data/hora"] = new Date().toISOString(); 
                 dataToSave["Total de atendimento novos atendimentos e reavalicões:"] = Number(totalInput.value);
 
                 statusMessage.style.display = 'block';
