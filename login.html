@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Produtividade Clínica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #2c3e50;
+            --accent-blue: #007bff; /* Azul padrão do seu dashboard */
+            --white: #ffffff;
+        }
+        body { 
+            background-color: var(--bg-dark); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        .login-card {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            border-top: 8px solid var(--accent-blue);
+        }
+        .btn-login {
+            background-color: var(--accent-blue);
+            border: none;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .btn-login:hover {
+            background-color: #0056b3;
+            color: white;
+        }
+        .brand-title {
+            color: var(--bg-dark);
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .brand-subtitle {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2 class="brand-title">SISTEMA CLÍNICO</h2>
+        <p class="brand-subtitle">Painel de Produtividade</p>
+        
+        <div id="loginError" class="alert alert-danger d-none small"></div>
+        
+        <div class="mb-3">
+            <label class="form-label fw-bold">E-mail de Acesso</label>
+            <input type="email" id="email" class="form-control" placeholder="usuario@clinica.com">
+        </div>
+        <div class="mb-4">
+            <label class="form-label fw-bold">Senha</label>
+            <input type="password" id="senha" class="form-control" placeholder="******">
+        </div>
+        
+        <button id="btnEntrar" class="btn btn-login w-100 py-2">ACESSAR DASHBOARD</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // CONFIGURAÇÃO ATUALIZADA DO SEU PROJETO 'produtividade-4d98e'
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_22plUsZfyzW909W1ePkCJxq-KdUydcw",
+            authDomain: "produtividade-4d98e.firebaseapp.com",
+            projectId: "produtividade-4d98e",
+            storageBucket: "produtividade-4d98e.firebasestorage.app",
+            messagingSenderId: "642824868640",
+            appId: "1:642824868640:web:3e6ea0e09c41ec09023d45",
+            measurementId: "G-489RSTNQVT"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const btnEntrar = document.getElementById('btnEntrar');
+        const errorDiv = document.getElementById('loginError');
+
+        btnEntrar.addEventListener('click', () => {
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            // Feedback visual de carregamento
+            btnEntrar.disabled = true;
+            btnEntrar.innerText = "AUTENTICANDO...";
+            errorDiv.classList.add('d-none');
+
+            signInWithEmailAndPassword(auth, email, senha)
+                .then((userCredential) => {
+                    // Login bem sucedido
+                    window.location.href = "dashboard.html"; 
+                })
+                .catch((error) => {
+                    // Erro no login
+                    btnEntrar.disabled = false;
+                    btnEntrar.innerText = "ACESSAR DASHBOARD";
+                    errorDiv.classList.remove('d-none');
+                    
+                    if (error.code === 'auth/invalid-credential') {
+                        errorDiv.innerText = "E-mail ou senha incorretos.";
+                    } else if (error.code === 'auth/too-many-requests') {
+                        errorDiv.innerText = "Muitas tentativas. Tente mais tarde.";
+                    } else {
+                        errorDiv.innerText = "Erro ao acessar o sistema. Verifique os dados.";
+                    }
+                    console.error("Erro Firebase:", error.code);
+                });
+        });
+    </script>
+</body>
+</html>
